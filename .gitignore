@@ -1,0 +1,10 @@
+# private / machine-specific
+klucz-telefonu.txt
+trener-dane.json
+trener-dane.kopia-*.json
+trener-dane.tmp
+*.log
+_sync_*
+__pycache__/
+# old snapshot kept on the PC
+web-1.0-kopia/

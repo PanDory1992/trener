@@ -28,6 +28,13 @@ Keystation Pro 88 ──USB──> pedal_router.py (krzywe velocity, pedał, try
 - Na iMacu (Linux Mint, Chromium) i iPhonie Trener otwiera się przez Wi-Fi pod adresem `http://192.168.1.234:47810/?k=<klucz>`. Bez klucza dostęp jest tylko z PC.
 - Dane: `trener-dane.json` (postępy, ustawienia, karty, piosenki); codzienna kopia `trener-dane.kopia-RRRRMMDD.json`. Ustawienia mają znaczniki czasu na jednostkę (`data.at`), a serwer scala je z wielu okien (`merge_data`).
 
+## Dane użytkownika to nie kod
+
+**Piosenki, postępy i ustawienia są w `trener-dane.json`, nie w repozytorium.** Dodanie piosenki nie wymaga zmian w kodzie.
+- Najprościej: Trener → **Piosenki** → wklej akordy jako tekst (styl Ultimate Guitar, z tekstem albo bez; sekcje w `[Zwrotka]`). Parser: `songs.js` (`parseChart`, `parseChord`). Format zapisu: `{ id, title, text }` w `data.songs`.
+- Z edytora Jamu: **Zapisz jako piosenkę** (`stepsToChart`).
+- **Nie edytuj `trener-dane.json` ręcznie przy działającym serwerze:** otwarte okna zapisują swój stan i mogą nadpisać zmianę. Serwer scala piosenki po `id` (`merge_data` w `trener_serwer.py`), więc zapis przez `/api/data` jest bezpieczny dopiero po przeczytaniu `merge_data`.
+
 ## Kanały MIDI (umowa z projektem Studio One „2026-10-06 mikit”)
 
 | Kanał | Co | Ścieżka w Studio One |

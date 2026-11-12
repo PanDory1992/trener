@@ -412,6 +412,10 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .gstep.part b { color: var(--warn); }
 .gstep.miss { opacity: 0.6; }
 .play-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 6px 0 6px; }
+.band-row { margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--line, #ddd); border-radius: 10px; }
+.band-row .chips-row { margin: 0; }
+.band-row .band-help { margin: 6px 0 0; font-size: .86rem; }
+.band-row select { max-width: 15rem; }
 .tempo-field input { width: 150px; }
 .tempo-field b { min-width: 34px; font-variant-numeric: tabular-nums; color: var(--ink); }
 .kstatus { min-height: 34px; margin: 4px 0 8px; }

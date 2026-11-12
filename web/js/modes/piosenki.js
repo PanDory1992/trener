@@ -8,6 +8,9 @@ import { el, fill, add, toast } from '../ui.js';
 import { Guide, WAYS } from './guide.js';
 import { loopButton } from '../loopui.js';
 import { playEvents } from './common.js';
+import { loopOn } from '../loop.js';
+import { GROOVE, GROOVE_GROUPS } from '../grooves.js';
+import { BAND_MODES, songBand, chunkEvents, chordAt } from '../bandplay.js';
 import { ROLE_TONE } from './kolo.js';
 import * as M from '../mastery.js';
 import { fnOf, fnColor, fnClass } from '../colors.js';
@@ -42,6 +45,8 @@ export function mount(stage, ctx) {
   st.bpc = [0, 1, 2].includes(st.bpc) ? st.bpc : 0;
   st.meta = st.meta || {};
   st.autoLights = st.autoLights !== false;
+  st.bandMode = BAND_MODES.some(([v]) => v === st.bandMode) ? st.bandMode : 'rytm';
+  st.bandStyle = GROOVE[st.bandStyle] ? st.bandStyle : 'pop';
   if (!Array.isArray(store.data.songs)) store.data.songs = [];
   M.bind(store.data);
   // from a review or a hint: open this song, section and pattern
@@ -252,7 +257,7 @@ export function mount(stage, ctx) {
           ln.chords.length ? el('div', { class: 'sc-chords' }, ln.chords.map((t) => {
             const myCi = ci++;
             const raw = t.chord;
-            const e = el('span', { class: `sc-ch ${inFamily(a.secOrig[si], raw) ? '' : 'out'}`, style: { left: `${t.col}ch` }, 'data-ci': si === secIdx ? String(myCi) : '', title: 'Kliknij: zagram ten akord',
+            const e = el('span', { class: `sc-ch ${inFamily(a.secOrig[si], raw) ? '' : 'out'}`, style: { left: `${t.col}ch` }, 'data-ci': si === secIdx ? String(myCi) : '', 'data-sc': `${si}:${myCi}`, title: 'Kliknij: zagram ten akord',
               onclick: () => { const c = chordObj(move(raw)); const v = voicing(c, { center: 64, lo: 55, hi: 74 }); const notes = [bassNote(c, 43), ...v]; ctx.keyboard.mark(chordMarks(c, notes, fnOf(a.secKey[si], c))); soft(notes); } }, ...label(raw, si));
             if (si === secIdx) chartEls.push(e);
             return e;
@@ -328,9 +333,8 @@ export function mount(stage, ctx) {
       outside.length ? el('div', {}, el('p', { class: 'muted' }, 'Spoza rodziny (szare, podkreślone kreskami):'), el('ul', {}, outside.map((t) => el('li', {}, t)))) : el('p', { class: 'muted' }, 'Wszystkie akordy są z rodziny tej tonacji.'));
   }
 
-  function jamWith(a, sec) {
-    const secs = sec ? [sec] : a.chart.sections;
-    // editor steps: sections stay as markers, half-bar chords stay half a bar, slash basses (C/E) stay
+  /** Editor steps for sections: sections stay as markers, half-bar chords stay half a bar, slash basses (C/E) stay. */
+  function songSteps(a, secs) {
     const steps = [];
     for (const s of secs) {
       if (secs.length > 1) steps.push({ k: 'sec', label: s.name });
@@ -341,12 +345,118 @@ export function mount(stage, ctx) {
         steps.push(step);
       });
     }
+    return steps;
+  }
+
+  function jamWith(a, sec) {
+    const steps = songSteps(a, sec ? [sec] : a.chart.sections);
     steps.splice(64);
     ctx.go && ctx.go('jam', { preset: { song: { title: `${current().title}${sec ? ` · ${sec.name}` : ''}`, key: { li: a.key.li, acc: a.key.acc, mode: a.key.mode }, steps } } });
   }
 
+  // --- the band plays the song with you (no detour through Jam) ---------------------------------------------------
+  let band = null;        // { gen, timers: [], raf, whole }
+  let bandGen = 0;
+  let bandBtns = null;
+  const bandStyleOf = (sid) => (GROOVE[meta(sid).style] ? meta(sid).style : st.bandStyle);
+  function bandLight(sc) {
+    for (const e of card.querySelectorAll('.sc-ch.band-now')) e.classList.remove('band-now', 'now');
+    if (sc) { const e = card.querySelector(`.sc-ch[data-sc="${sc}"]`); if (e) e.classList.add('band-now', 'now'); }
+  }
+  function refreshBandButtons() {
+    if (!bandBtns) return;
+    const set = (b, on, label) => { b.textContent = on ? '■ Stop' : label; b.classList.toggle('stop', on); };
+    set(bandBtns.part, !!band && !band.whole, '▶ Ta część z zespołem');
+    set(bandBtns.whole, !!band && band.whole, '▶ Cała piosenka z zespołem');
+  }
+  function stopBand(silence = true) {
+    if (!band) return;
+    for (const c of band.timers) { try { c(); } catch { /* gone */ } }
+    cancelAnimationFrame(band.raf);
+    band = null;
+    bandLight(null);
+    if (silence) bus.stop();
+    refreshBandButtons();
+  }
+  async function startBand(whole) {
+    guide.stop();
+    stopBand(false);
+    bus.stop();
+    const song = current();
+    const a = analyse(song);
+    const secIdx = Math.min(a.m.section || 0, a.chart.sections.length - 1);
+    const sis = whole ? a.chart.sections.map((_, i) => i) : [secIdx];
+    const steps = songSteps(a, sis.map((i) => a.chart.sections[i]));
+    const where = sis.flatMap((si) => a.chart.sections[si].chords.map((_, ci) => ({ si, ci })));   // played chord k → place on the chart
+    if (!where.length) return;
+    const gen = ++bandGen;
+    band = { gen, timers: [], raf: 0, whole };
+    refreshBandButtons();
+    const groove = bandStyleOf(song.id);
+    const tempo = st.tempo;
+    let barOffset = 0;
+    let lap = 1;
+    const playPass = async (at) => {
+      const pass = songBand({ key: a.key, steps, groove, tempo, mode: st.bandMode, drummer: 3, barOffset, lead: at == null });
+      barOffset += pass.bars;
+      const parts = chunkEvents(pass.events);
+      let t0;
+      try { t0 = await playEvents(parts[0].events, at == null ? { lead: 0.3 } : { at }); } catch { if (band && band.gen === gen) { setStatus('Serwer Trenera nie odpowiada.', 'bad'); stopBand(false); } return; }
+      if (!band || band.gen !== gen) return;
+      for (const p of parts.slice(1)) playEvents(p.events, { at: t0 + p.offset }).catch(() => {});
+      const end = t0 + pass.seconds;
+      band.pass = { t0, chords: pass.chords, leadIn: pass.leadIn, end };
+      // shortly before the end: another pass (Pętla) or the end
+      band.timers.push(bus.at(end - 0.8, () => {
+        if (!band || band.gen !== gen) return;
+        if (loopOn()) { lap++; playPass(end); } else band.timers.push(bus.at(end + 0.1, () => { if (band && band.gen === gen) { stopBand(false); setStatus('Koniec. Zagrać jeszcze raz?'); } }));
+      }));
+    };
+    const names = a.chart.sections;
+    let lastSc = '';
+    const tick = () => {
+      if (!band || band.gen !== gen || !alive) return;
+      const p = band.pass;
+      if (p) {
+        const now = bus.now();
+        // the next pass starts right at the end of this one
+        const k = chordAt(p.chords, now - p.t0);
+        const sc = k >= 0 && where[k] ? `${where[k].si}:${where[k].ci}` : '';
+        if (sc !== lastSc) {
+          lastSc = sc;
+          bandLight(sc);
+          if (k >= 0 && where[k]) setStatus(`Zespół gra${lap > 1 ? ` (${lap}. raz)` : ''} · ${names[where[k].si].name} · ${p.chords[k].name || ''}`, 'listen');
+          else if (now < p.t0 + p.leadIn) setStatus('Odliczam takt…', 'listen');
+        }
+      }
+      band.raf = requestAnimationFrame(tick);
+    };
+    band.raf = requestAnimationFrame(tick);
+    await playPass(null);
+  }
+  function bandRow(song, secIdx) {
+    const part = el('button', { class: 'btn primary', onclick: () => { if (band && !band.whole) stopBand(); else startBand(false); } }, '');
+    const whole = el('button', { class: 'btn', onclick: () => { if (band && band.whole) stopBand(); else startBand(true); } }, '');
+    bandBtns = { part, whole };
+    refreshBandButtons();
+    const mode = BAND_MODES.find(([v]) => v === st.bandMode);
+    const style = bandStyleOf(song.id);
+    return el('div', { class: 'band-row' },
+      el('div', { class: 'chips-row' },
+        el('span', { class: 'muted' }, 'Zespół gra ze mną:'),
+        el('div', { class: 'seg-ctl small', role: 'radiogroup', 'aria-label': 'Kto gra' },
+          BAND_MODES.map(([v, t, help]) => el('button', { class: st.bandMode === v ? 'on' : '', role: 'radio', 'aria-checked': String(st.bandMode === v), title: help, onclick: () => { st.bandMode = v; store.save(); renderCard(); } }, t))),
+        el('label', { class: 'field inline' }, el('span', {}, 'Styl'),
+          el('select', { class: 'band-style', 'aria-label': 'Styl zespołu', onchange: (e) => { meta(song.id).style = e.target.value; st.bandStyle = e.target.value; store.save(); renderCard(); } },
+            GROOVE_GROUPS.map(([n, ids]) => el('optgroup', { label: n }, ids.filter((gid) => GROOVE[gid]).map((gid) => el('option', { value: gid, selected: gid === style }, `${GROOVE[gid].name} · ${GROOVE[gid].meter}`)))))),
+        part, whole),
+      el('p', { class: 'muted band-help' }, `${mode[2]} Tempo bierzemy z suwaka obok. Z włączoną „Pętlą” gramy w kółko. „Ta część” to ${partName(song, secIdx)}.`));
+  }
+  function partName(song, secIdx) { const c = parseChart(song.text); return (c.sections[secIdx] || {}).name || '—'; }
+
   function renderCard() {
     guide.stop();
+    stopBand();
     if (editing) return renderEditor();
     const song = current();
     if (!song) { fill(card, el('p', {}, 'Dodaj piosenkę.')); return; }
@@ -369,8 +479,8 @@ export function mount(stage, ctx) {
     const tempo = el('label', { class: 'field inline tempo-field' }, el('span', {}, 'Tempo'),
       el('input', { type: 'range', min: '40', max: '160', step: '2', value: String(st.tempo), oninput: (e) => { st.tempo = Number(e.target.value); tv.textContent = `${st.tempo}`; store.save(); } }), el('b', {}, ''));
     const tv = tempo.querySelector('b'); tv.textContent = `${st.tempo}`;
-    const show = el('button', { class: 'btn', onclick: () => { if (guide.running && guide.way === 'show') { guide.stop(); bus.stop(); } else guide.show(st.tempo); } }, 'Pokaż');
-    const play = el('button', { class: 'btn primary', onclick: () => { if (guide.running && guide.way !== 'show') { guide.stop(); bus.stop(); } else guide.start(st.way, { tempo: st.tempo }); } }, 'Graj ze mną');
+    const show = el('button', { class: 'btn', onclick: () => { stopBand(false); if (guide.running && guide.way === 'show') { guide.stop(); bus.stop(); } else guide.show(st.tempo); } }, 'Pokaż');
+    const play = el('button', { class: 'btn primary', onclick: () => { stopBand(false); if (guide.running && guide.way !== 'show') { guide.stop(); bus.stop(); } else guide.start(st.way, { tempo: st.tempo }); } }, 'Graj ze mną');
     runBtns = { show, play };
     const shiftBtn = (d) => el('button', { class: 'btn small', onclick: () => { m.shift = Math.max(-11, Math.min(11, (m.shift || 0) + d)); store.save(); renderCard(); } }, d > 0 ? '+½' : '−½');
 
@@ -399,6 +509,7 @@ export function mount(stage, ctx) {
           [[0, 'jak zapisano'], [1, '1 takt'], [2, '2 takty']].map(([v, t]) => el('button', { class: st.bpc === v ? 'on' : '', role: 'radio', 'aria-checked': String(st.bpc === v), onclick: () => { st.bpc = v; store.save(); renderCard(); } }, t)))),
       revBox, strip, progBox,
       el('div', { class: 'play-row' }, show, play, loopButton(), ways, tempo),
+      bandRow(song, secIdx),
       fbBox, line,
       stepsInside(a, sec));
     setStatus(WAYS[st.way].help);
@@ -426,9 +537,9 @@ export function mount(stage, ctx) {
       if (act === 'start') guide.start(st.way, { tempo: st.tempo });
       if (act === 'repeat') guide.show(st.tempo);
       if (act === 'hint') guide.hint();
-      if (act === 'pause' || act === 'end') { guide.stop(); bus.stop(); }
+      if (act === 'pause' || act === 'end') { stopBand(false); guide.stop(); bus.stop(); }
     },
-    destroy() { alive = false; guide.stop(); ctx.keyboard.mark([]); },
+    destroy() { alive = false; stopBand(); guide.stop(); ctx.keyboard.mark([]); },
   };
 }
 

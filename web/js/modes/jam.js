@@ -3,23 +3,12 @@
 import * as bus from '../bus.js';
 import { getKey, setKey } from '../key.js';
 import * as store from '../store.js';
-import { countIn, GROOVE, GROOVES, jamCycle, ROLES, answerBar, bassMidi, KEYS_CH } from '../grooves.js';
+import { countIn, GROOVE, GROOVES, GROOVE_GROUPS, jamCycle, ROLES, answerBar, bassMidi, KEYS_CH } from '../grooves.js';
 import { progEditor } from '../editor.js';
 import { normStep, stepsToChart, detectKey, stepChords, identify, scaleMode, rekey } from '../chords.js';
 import { buildMidi, keySignature } from '../midi.js';
 import { DRUMMERS } from '../drummer.js';
 
-// the style cards in three groups (any groove not listed lands in the last group)
-const GROUPED = [
-  ['Pop, rock, soul', ['pop', 'ballada', 'rock', 'poppunk', 'powerballad', 'folk', 'halftime', 'motown', 'disco', 'funk', 'neosoul', 'hiphop', 'gospel', 'country', 'rocknroll']],
-  ['Jazz i blues', ['swing', 'jazz2', 'jazzBallada', 'jazzWalc', 'shuffle', 'purdie', 'slowblues', 'walc']],
-  ['Ze świata', ['bossa', 'samba', 'salsa', 'tango', 'reggae', 'afrobeat', 'mazurek', 'cocek', 'lesnoto', 'karsilama']],
-];
-const GROOVE_GROUPS = (() => {
-  const listed = new Set(GROUPED.flatMap(([, ids]) => ids));
-  const rest = GROOVES.map((g) => g.id).filter((id) => !listed.has(id));
-  return GROUPED.map(([n, ids], i) => [n, i === GROUPED.length - 1 ? [...ids, ...rest] : ids]);
-})();
 import { ALL_KEYS, family, keyAt, keyName, nameInKey, PROGRESSIONS, scaleNotes, stepKey, wheelIndex, FAMILY, degreeChord, keyByTonic } from '../theory.js';
 import { el, fill, add, toast } from '../ui.js';
 import { playEvents } from './common.js';

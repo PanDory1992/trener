@@ -441,3 +441,15 @@ export function countIn(groove, tempo, band) {
   }
   return { events: ev, seconds: tm.bar };
 }
+
+// the style cards in three groups (any groove not listed lands in the last group)
+const GROUPED = [
+  ['Pop, rock, soul', ['pop', 'ballada', 'rock', 'poppunk', 'powerballad', 'folk', 'halftime', 'motown', 'disco', 'funk', 'neosoul', 'hiphop', 'gospel', 'country', 'rocknroll']],
+  ['Jazz i blues', ['swing', 'jazz2', 'jazzBallada', 'jazzWalc', 'shuffle', 'purdie', 'slowblues', 'walc']],
+  ['Ze świata', ['bossa', 'samba', 'salsa', 'tango', 'reggae', 'afrobeat', 'mazurek', 'cocek', 'lesnoto', 'karsilama']],
+];
+export const GROOVE_GROUPS = (() => {
+  const listed = new Set(GROUPED.flatMap(([, ids]) => ids));
+  const rest = GROOVES.map((g) => g.id).filter((id) => !listed.has(id));
+  return GROUPED.map(([n, ids], i) => [n, i === GROUPED.length - 1 ? [...ids, ...rest] : ids]);
+})();

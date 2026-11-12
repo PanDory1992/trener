@@ -38,7 +38,7 @@ Keystation Pro 88 ──USB──> pedal_router.py (krzywe velocity, pedał, try
 | 10 | perkusja (GM: 36 stopa, 37 rim, 38 werbel, 42/44/46 hi-hat, 49 crash, 51 ride, 53 dzwonek, 43–50 tomy) | Perkusja (Impact) + wyjścia „Perkusja 2–8” → Perkusja Bus |
 | 16 | klik metronomu, pady C1–G1 (36–43) = warianty 1–8 | Klik (Impact 2, zestaw „KLIK”) → Klik Bus |
 
-Na busach siedzi wtyczka **Uszy** (pomiar LUFS i wzmocnienie). Szczegóły: dokument projektu `claude/studio-one-uszy.md`. Pułapki Studio One:
+Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na busach usunął, zostały tylko Uszy na 0 dB na Klawisze Bus). Wtyczka **Uszy** (pomiar LUFS i wzmocnienie, sterowana przez most) jest dostępna, gdyby trzeba było znów mierzyć albo wyrównywać. Szczegóły: dokument projektu `claude/studio-one-uszy.md` (wzmocnienia tam opisane są historyczne). Pułapki Studio One:
 - **Low Latency Monitoring musi być wyłączony**, bo inaczej wtyczki dostają ciszę;
 - nie uruchamiać jako administrator, bo blokuje sterowanie myszą;
 - dodatkowe wyjścia instrumentów muszą iść na busy, bo inaczej przesterowują Main.

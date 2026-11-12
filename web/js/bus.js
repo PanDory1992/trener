@@ -2,6 +2,8 @@
 
 const listeners = new Set();
 // On another device (iPhone) the address carries the key: pass it on to every request.
+import { toTrainerCh } from './outch.js';
+
 const KEY = new URLSearchParams(location.search).get('k');
 export function api(url) { return KEY ? `${url}${url.includes('?') ? '&' : '?'}k=${encodeURIComponent(KEY)}` : url; }
 export const remote = !['127.0.0.1', 'localhost', '[::1]', ''].includes(location.hostname);
@@ -51,6 +53,7 @@ async function post(url, body) {
 
 /** Play events [{t, m}] starting `lead` seconds from now (or at server time `at`). Returns t0. */
 export async function play(events, { lead = 0.35, at = null } = {}) {
+  events = toTrainerCh(events);   // Trener's piano never plays on your channel 1
   const res = await post('/api/play', at ? { at, events } : { lead, events });
   noteClock(res.now);
   return res.t0;

@@ -321,6 +321,9 @@ def main():
                 page.set_viewport_size({"width": 390, "height": 844})
                 page.wait_for_timeout(500)
                 page.screenshot(path=str(shots / "24-mobile.png"))
+                ch1 = sorted(hex(x) for x in user.statuses if x in (0x90, 0x80))
+                print("CHANNEL 1 FROM TRENER:", ch1 or "none (all on channel 3)")
+                assert not ch1, f"Trener played on channel 1: {ch1}"
             except Exception as exc:
                 print("FAILED:", str(exc).splitlines()[0])
                 page.screenshot(path=str(shots / "zz-fail.png"))

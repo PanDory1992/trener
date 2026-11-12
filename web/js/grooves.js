@@ -315,7 +315,7 @@ export function jamCycle(opts) {
   };
   const off = (t, ch, n) => events.push({ t: Math.max(0, t + (jit.get(ch * 128 + n) || 0)), m: [0x80 | ch, n, 0] });
   const bassCh = band ? 1 : 0;
-  // the band's keys: with the band and keysOwn on their own channel 3 (a separate track in Studio One), else on your piano
+  // the band's keys on channel 3 (track "Klawisze"); channel 1 left for them only without keysOwn, and bus.play moves it to 3 anyway
   const compCh = band && keysOwn ? KEYS_CH : 0;
   // each chord lasts its own number of bars (a song step may say 0.5 = half a bar), else barsPerChord
   const lens = chords.map((c) => (c.bars > 0 ? c.bars : barsPerChord));

@@ -67,8 +67,8 @@ def main():
             pg.get_by_role("button", name="Graj ze mną", exact=True).click()
             pg.wait_for_timeout(3000)
             pg.get_by_role("button", name="■ Stop", exact=True).click()
-            piano_clicks = [x for x in played if x[1] == 0x90 and x[2] == 96]
-            ok("default click on the piano (C7)", len(piano_clicks) >= 2 and not any(x[1] == 0x9F for x in played), f"{len(piano_clicks)} clicks")
+            piano_clicks = [x for x in played if x[1] == 0x92 and x[2] == 96]
+            ok("default click on the piano (C7, channel 3)", len(piano_clicks) >= 2 and not any(x[1] in (0x9F, 0x90) for x in played), f"{len(piano_clicks)} clicks")
 
             # 2. settings: channel 16, pad 3, accent on pad 8
             pg.click(".nav-item[data-view=settings]")
@@ -99,7 +99,7 @@ def main():
             pg.wait_for_timeout(1800)
             pg.get_by_role("button", name="■ Stop", exact=True).click()
             ch16 = [x for x in played if x[1] == 0x9F]
-            ok("W tempie clicks on channel 16, piano C7 silent", len(ch16) >= 2 and not any(x[1] == 0x90 and x[2] == 96 for x in played), f"{len(ch16)} clicks")
+            ok("W tempie clicks on channel 16, piano C7 silent", len(ch16) >= 2 and not any(x[1] == 0x92 and x[2] == 96 for x in played), f"{len(ch16)} clicks")
             ok("click pads do not light keys", lit == 0, f"lit={lit}")
 
             # 4. reload: the setting is applied at start
@@ -109,7 +109,7 @@ def main():
             pg.get_by_role("button", name="Graj ze mną", exact=True).click()
             pg.wait_for_timeout(2500)
             pg.get_by_role("button", name="■ Stop", exact=True).click()
-            ok("after reload still channel 16", any(x[1] == 0x9F for x in played) and not any(x[1] == 0x90 and x[2] == 96 for x in played))
+            ok("after reload still channel 16", any(x[1] == 0x9F for x in played) and not any(x[1] == 0x92 and x[2] == 96 for x in played))
             b.close()
     finally:
         server.terminate()

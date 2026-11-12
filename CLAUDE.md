@@ -1,6 +1,6 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.8** (12.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.8.1** (12.11.2026).
 
 **Stan: zamrożenie funkcji** (decyzja Mikiego 10.11). Nie dodajemy funkcji bez wyraźnej prośby. Dozwolone: poprawki błędów, dokumentacja, testy.
 
@@ -59,9 +59,9 @@ Keystation Pro 88 ──USB──> pedal_router.py (krzywe velocity, pedał, try
 
 | Kanał | Co | Ścieżka w Studio One |
 |---|---|---|
-| 1 | twoje pianino i dawny klik na C7 | Ja (Pianoteq / inne) → Pianino Bus |
+| 1 | **tylko twoja klawiatura** (Trener nic tu nie gra od 12.11) | Ja (Pianoteq / inne) → Pianino Bus |
 | 2 | bas zespołu | Bas (Presence, kontrabas) → Bas Bus |
-| 3 | klawisze zespołu (akordy, arpeggio) | Klawisze (Pianoteq) → Klawisze Bus; **wejście ścieżki musi być CH 3** (ustawia Miki) |
+| 3 | **wszystko, co Trener gra na pianinie**: podgląd akordów, pokazy, „Graj ze mną”, klik na pianinie (C7), klawisze zespołu, bas bez zespołu | Klawisze (Pianoteq) → Klawisze Bus; **wejście ścieżki musi być CH 3** (ustawia Miki) |
 | 10 | perkusja (GM: 36 stopa, 37 rim, 38 werbel, 42/44/46 hi-hat, 49 crash, 51 ride, 53 dzwonek, 43–50 tomy) | Perkusja (Impact) + wyjścia „Perkusja 2–8” → Perkusja Bus |
 | 16 | klik metronomu, pady C1–G1 (36–43) = warianty 1–8 | Klik (Impact 2, zestaw „KLIK”) → Klik Bus |
 
@@ -74,7 +74,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 **Rdzeń**
 - `app.js`: nawigacja, ekran główny, plan dnia, pilot (C56–C60), klawiatura na żywo, panel „Co ja gram?” (używa `chords.identify` i pedału).
-- `bus.js`: połączenie z serwerem (SSE, `play`, `at`).
+- `bus.js`: połączenie z serwerem (SSE, `play`, `at`). **Każde granie przechodzi przez `bus.play`, a ono przez `outch.js` (`toTrainerCh`): kanał 1 → 3.** Nowy kod może pisać `0x90`; i tak nie trafi na kanał Mikiego.
 - `store.js`: dane, ustawienia, synchronizacja wielu okien.
 - `ui.js`: `el()` / `fill()`, klawiatura, wykresy, toast.
 - `key.js`: wspólna tonacja.
@@ -133,7 +133,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, około 115 testów. Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 118 testów. Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
 - Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
@@ -170,6 +170,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.8.1 | 12.11 | Trener nie gra już na kanale 1: wszystko z pianina idzie na kanał 3 (prośba Mikiego: nuty Trenera biły się z jego grą). W Jamie zniknęło pole „Klawisze zespołu osobno”. Serwer bez zmian (`VERSION` dalej 1.8). |
 
 Dokumenty projektu: `trener-1.1-kolo-i-jam`, `trener-1.3-prio1`, `trener-1.4-piosenki-skale-jam`, `trener-1.5-palce-prio2`, `trener-1.6-edytor-akordow` (zawiera też 1.7 i 1.8), `trener-okiem-pianisty` (ocena i zalecenie zamrożenia), `studio-one-uszy`, `keystation-mechanika-przebudowa`.
 

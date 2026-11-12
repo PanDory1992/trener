@@ -132,7 +132,7 @@ export function mount(stage, ctx) {
   }
 
   function opts() {
-    return { key, prog: prog(), groove: st.groove, tempo: st.tempo, barsPerChord: st.bpc, color: st.color, band: st.band, role: st.role, click: st.click, callResponse: st.chal === 'qa' && chalRole(), keysOwn: st.keysOwn !== false,
+    return { key, prog: prog(), groove: st.groove, tempo: st.tempo, barsPerChord: st.bpc, color: st.color, band: st.band, role: st.role, click: st.click, callResponse: st.chal === 'qa' && chalRole(), keysOwn: true,
       arp: st.arp, human: st.human, bassLive: st.bassFollow && st.role === 'akordy', drummer: st.drummer };
   }
 
@@ -196,11 +196,10 @@ export function mount(stage, ctx) {
         seg('Co okrążenie: tonacja', [[0, 'stoi'], [1, 'krok w prawo', 'C → G → D… (kwinta w górę, coraz więcej krzyżyków)'], [-1, 'krok w lewo', 'C → F → B♭… (kwarta w górę, jak w jazzie)'], ['up', 'pół tonu w górę', 'C → D♭ → D → E♭… (po kolei jak na klawiaturze)']], st.walk, (v) => { st.walk = v; changed(); }),
         seg('Co okrążenie: tempo', [[0, 'stałe'], [2, '+2'], [4, '+4']], st.lapBpm, (v) => { st.lapBpm = v; changed(); }),
         el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.band, onchange: (e) => { st.band = e.target.checked; changed(); } }), el('span', {}, 'Zespół (perkusja i bas)')),
-        st.band ? el('label', { class: 'field inline', title: 'Akordy zespołu idą na kanał 3, na osobną ścieżkę „Klawisze” w Studio One, z własnym brzmieniem i suwakiem. Odznacz, a zagram je na twoim pianinie.' }, el('input', { type: 'checkbox', checked: st.keysOwn !== false, onchange: (e) => { st.keysOwn = e.target.checked; changed(); } }), el('span', {}, 'Klawisze zespołu osobno')) : null,
         el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.click, onchange: (e) => { st.click = e.target.checked; changed(); } }), el('span', {}, 'Klik')),
         el('label', { class: 'field inline', title: 'Co 4 okrążenia (i przed nową tonacją) perkusja gra przejście, a nowa część zaczyna się od talerza.' }, el('input', { type: 'checkbox', checked: st.fills !== false, onchange: (e) => { st.fills = e.target.checked; changed(); } }), el('span', {}, 'Przejścia perkusji')),
         el('label', { class: 'field inline', title: 'Grasz cicho, zespół gra ciszej; grasz mocno, zespół też. Zmienia się od następnego okrążenia.' }, el('input', { type: 'checkbox', checked: st.follow !== false, onchange: (e) => { st.follow = e.target.checked; changed(); } }), el('span', {}, 'Zespół słucha twojej dynamiki'))),
-      st.band ? el('p', { class: 'muted band-note' }, `Perkusja idzie na kanale 10, bas na kanale 2${st.keysOwn !== false ? ', akordy zespołu na kanale 3' : ''}. W Studio One każdy z nich ma swoją ścieżkę, a Pianoteq (twoje pianino) słucha tylko kanału 1. Bez tych ścieżek wyłącz „Zespół”: wtedy bas i akordy gram na pianinie.`) : null,
+      st.band ? el('p', { class: 'muted band-note' }, 'Perkusja idzie na kanale 10, bas na kanale 2, akordy zespołu na kanale 3 (jak wszystko, co Trener gra na pianinie). W Studio One każdy z nich ma swoją ścieżkę, a twoje pianino słucha tylko kanału 1. Bez ścieżek perkusji i basu wyłącz „Zespół”: wtedy bas gram na kanale 3.') : null,
       st.band ? el('div', { class: 'jc-row' }, seg('Perkusista', DRUMMERS.map(([v, t, d]) => [String(v), `${v}. ${t}`, d]), String(st.drummer), (v) => { st.drummer = Number(v); changed(); }),
         el('p', { class: 'muted jc-note' }, DRUMMERS.find(([v]) => v === st.drummer)[2])) : null,
       keysRow(seg, changed),
@@ -241,7 +240,7 @@ export function mount(stage, ctx) {
     if (!step || normStep(step).k !== 'chord') return;
     const [e] = stepChords(key, [step], { color: st.color === 'auto' ? 'triads' : st.color });
     if (!e) return;
-    const ch = st.band && st.keysOwn !== false ? KEYS_CH : 0;
+    const ch = KEYS_CH;
     const ev = [];
     e.voicing.forEach((n, i) => { ev.push({ t: i * 0.01, m: [0x90 | ch, n, 70] }, { t: 1.1, m: [0x80 | ch, n, 0] }); });
     if (e.bass != null) { const bc = st.band ? 1 : 0; ev.push({ t: 0, m: [0x90 | bc, e.bass, 72] }, { t: 1.1, m: [0x80 | bc, e.bass, 0] }); }

@@ -116,7 +116,14 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 2. `md5sum` po stronie PC musi się zgadzać z kopią źródłową.
 3. Odśwież przeglądarki. Zmiana w `trener_serwer.py` wymaga restartu serwera (nadzorca).
 
-Na PC jest **git** (`git log`): każda wdrożona wersja to commit.
+## Git i GitHub
+
+- Repozytorium: **https://github.com/PanDory1992/trener** (publiczne, decyzja Mikiego 12.11). Nigdy nie commituj `klucz-telefonu.txt`, `trener-dane*.json` ani logów (pilnuje tego `.gitignore`).
+- **Folder na PC to klon tego repozytorium** (`origin` = GitHub, gałąź `main`). PC czyta GitHuba bez logowania (repo publiczne), ale **nie może na niego wysyłać**, bo nie ma tam danych logowania.
+- **Praca z sesji w chmurze:** dołącz repo (add_repo, dostęp push), sklonuj, zmień, przetestuj, `git push`. Potem na PC: `cd ~/mnt/CodexPedalModes/trener && git pull --ff-only`, czyli wdrożenie. `git status` musi być czysty; sumy md5 sprawdza wtedy sam git.
+- **Zmiana zrobiona bezpośrednio na PC:** commit na PC, potem `git bundle create` → do chmury → `git push` stamtąd (albo Miki wysyła z GitHub Desktop).
+- Etykieta `v1.8` (commit 9ee9b9b) istnieje tylko lokalnie na PC: proxy chmury blokuje wysyłanie tagów.
+- Usuwanie plików w folderze PC (potrzebne gitowi do plików blokad) wymaga zgody Mikiego w danej sesji.
 
 ## Znane ograniczenia i pułapki
 

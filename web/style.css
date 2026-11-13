@@ -1059,3 +1059,15 @@ details.pe-grp > summary { cursor: pointer; }
 .groove-group { grid-column: 1 / -1; font: 700 12px var(--display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin-top: 6px; }
 .groove-group:first-child { margin-top: 0; }
 .jc-note { margin: 0; max-width: 620px; align-self: center; font-size: 13px; }
+
+/* 13.11: pedal coach chip in "Co ja gram?" and the weekly dynamics card */
+.whatplay { position: relative; }
+.wp-pedal { position: absolute; right: 10px; top: 6px; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #2a2547; color: var(--ink-2); }
+.wp-pedal.good { background: #1f3d2c; color: #9fe0b5; }
+.wp-pedal.blur { background: #4a2420; color: #ffb4a6; }
+.wp-pedal.early { background: #45391c; color: #ffd98a; }
+.dynbar { display: flex; height: 18px; border-radius: 6px; overflow: hidden; margin: 4px 0 8px; font-size: 11px; }
+.dynbar i { font-style: normal; display: flex; align-items: center; justify-content: center; color: #0e0c1a; min-width: 0; overflow: hidden; }
+.dl-ppp { background: #3d3a6b; color: var(--ink-2) !important; } .dl-pp { background: #4f5aa0; } .dl-p { background: #5f7fd0; }
+.dl-mp { background: #79a8e8; } .dl-mf { background: #a6cdf0; } .dl-f { background: #f0c98a; } .dl-ff { background: #f09a6e; } .dl-fff { background: #e8665a; }
+.week-task { margin-top: 6px; }

@@ -26,6 +26,7 @@ import { loopButton } from './loopui.js';
 import { toggleLoop, loopOn } from './loop.js';
 import { pickDice, hints, firstNewToday } from './suggest.js';
 import { reviewBar, allSongs } from './reviewbar.js';
+import { createPedalCoach, VERDICT_TEXT } from './pedalcoach.js';
 
 const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, fiszki, wolne, kolo, jam, piosenki, palce };
 const MAIN = ['kolo', 'piosenki', 'jam'];
@@ -50,6 +51,10 @@ let plan = null;          // today's planned blocks
 let run = null;           // running plan session
 let lastNoteAt = 0;
 let insight = null;
+let weekRep = null;              // /api/week: dynamics this week vs the last one
+const coach = createPedalCoach();
+let pedalMsg = null;             // {kind, text, until}: the last pedal verdict, shown in "Co ja gram?"
+const secs = () => performance.now() / 1000;
 const routerState = { router: false, touch: null };
 const held = new Set();         // keys you hold right now (for "Co ja gram?")
 const sustained = new Set();    // released while the sustain pedal is down: they still sound
@@ -273,9 +278,8 @@ function renderHome(stage) {
             el('div', { class: 'wd-bar' }, el('i', { style: { height: `${Math.max(2, (w.sec / maxSec) * 100)}%` } })),
             el('span', {}, w.label)))),
           el('p', { class: 'muted' }, `Dziś: ${fmtMin((store.data.days[store.today()] || {}).sec || 0)} grania.`)),
-        insight && insight.ok ? el('div', { class: 'panel' },
-          el('h2', {}, 'Z twojej gry'),
-          el('p', {}, `Ostatnie 3 dni: ${insight.notes} nut. „1” (za wolne dotknięcie) na czarnych: `, el('b', {}, `${Math.round(insight.black_ones * 1000) / 10}%`), `, na białych: ${Math.round(insight.white_ones * 1000) / 10}%.`)) : null)),
+        weekPanel(),
+        pedalPanel())),
     el('section', { class: 'modes-grid' }, NAV.map((id) => {
       const m = store.mode(id);
       const rate = store.successRate(id);
@@ -286,6 +290,37 @@ function renderHome(stage) {
         id === 'fiszki' ? el('span', { class: 'tile-meta' }, `${store.data.cards.length} ${plural(store.data.cards.length, 'fiszka', 'fiszki', 'fiszek')}`)
           : el('span', { class: 'tile-meta' }, `poziom ${m.level.toFixed(1)}${rate != null ? `, ${Math.round(rate * 100)}% udanych` : ''}${ds === null ? ', jeszcze nie grane' : ds === 0 ? ', dziś' : `, ${ds} dni temu`}`));
     })));
+}
+
+// --- weekly dynamics (router's note files) and the pedal today -------------------------------------------------------
+const r0 = (v) => (v == null ? '–' : Math.round(v));
+const DYN = ['ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff'];
+function weekPanel() {
+  const w = weekRep;
+  if (!w || !w.ok) return null;
+  const c = w.cur.notes ? w.cur : w.prev;
+  const p = w.cur.notes ? w.prev : null;
+  const was = (a, b, unit = '') => (p && p.notes && b != null ? ` (tydzień temu ${b}${unit})` : '');
+  const t = w.task;
+  return el('div', { class: 'panel week-dyn' },
+    el('h2', {}, w.cur.notes ? 'Twoja dynamika w tym tygodniu' : 'Twoja dynamika w zeszłym tygodniu'),
+    el('div', { class: 'dynbar', title: DYN.map((k) => `${k}: ${Math.round((c.levels[k] || 0) * 100)}%`).join(', ') },
+      DYN.map((k) => el('i', { class: `dl-${k}`, style: { flex: String(c.levels[k] || 0) } }, (c.levels[k] || 0) >= 0.08 ? k : ''))),
+    el('p', {}, 'Zakres ', el('b', {}, `${c.lo_level}–${c.hi_level}`), was(0, p && `${p.lo_level}–${p.hi_level}`), `, ${c.notes} nut.`),
+    el('p', {}, `Równość: sąsiednie nuty różnią się średnio o ${c.even ?? '–'}${was(0, p && p.even)}. Lewa ręka ${r0(c.left)}, prawa ${r0(c.right)}.`),
+    el('p', { class: 'muted' }, `Czarne klawisze uderzasz z siłą ${r0(c.black)}, białe ${r0(c.white)}. „1” (za wolne dotknięcie) na czarnych: ${Math.round((c.black_ones || 0) * 1000) / 10}%.`),
+    t ? el('p', { class: 'week-task' }, el('b', {}, `Zadanie: ${t.title}. `), t.text) : null,
+    t && MODES[t.mode] ? el('button', { class: 'btn small', onclick: () => go(t.mode) }, `Otwórz: ${MODES[t.mode].title}`) : null);
+}
+
+function pedalPanel() {
+  const d = store.data.days[store.today()] || {};
+  const g = d.pedal_good || 0, b = d.pedal_blur || 0, e = d.pedal_early || 0;
+  if (!g && !b && !e) return null;
+  return el('div', { class: 'panel' },
+    el('h2', {}, 'Pedał dziś'),
+    el('p', {}, el('b', {}, `${Math.round((100 * g) / (g + b + e))}%`), ` czystych zmian przy nowym akordzie (${g} z ${g + b + e}).`),
+    el('p', { class: 'muted' }, `Rozmazane: ${b}. Za wcześnie: ${e}. Dobrze: puść pedał w chwili uderzenia akordu i wciśnij go zaraz potem.`));
 }
 
 // --- Prio 2: Kostka, powtórki z Koła, podpowiedzi, "na koniec" ---------------------------------------------------
@@ -481,7 +516,7 @@ function pilot(action) {
 function onBus(e) {
   if (e.t === 'note') {
     if (e.src === 'keys') {
-      if (e.on) { held.add(e.note); sustained.delete(e.note); } else { held.delete(e.note); if (pedalDown) sustained.add(e.note); }
+      if (e.on) { held.add(e.note); sustained.delete(e.note); coach.note(secs(), true, e.note); } else { held.delete(e.note); if (pedalDown) sustained.add(e.note); }
       updateWhat();
       if (e.on) {
         pushDockTrail(e.note);
@@ -501,6 +536,7 @@ function onBus(e) {
   } else if (e.t === 'pedal') {
     if (e.pedal === 'sustain' || e.cc === 64) {
       pedalDown = e.value >= 64;
+      coach.pedal(secs(), pedalDown);
       if (!pedalDown) sustained.clear();
       updateWhat();
     }
@@ -575,8 +611,8 @@ function renderWhat() {
     else if (!mini.firstChild) fill(mini, el('b', {}, keyName(key, true)));
   }
   if (!r) {
-    box.classList.add('idle');
-    if (!box.firstChild) fill(box, el('span', { class: 'wp-label' }, 'Co ja gram?'), el('b', { class: 'wp-name' }, '–'), el('span', { class: 'wp-detail' }, `Przytrzymaj akord. Tonacja: ${keyName(key, true)}.`));
+    box.classList.toggle('idle', !(pedalMsg && Date.now() <= pedalMsg.until));   // a fresh pedal verdict stays bright
+    fill(box, el('span', { class: 'wp-label' }, 'Co ja gram?'), el('b', { class: 'wp-name' }, '–'), el('span', { class: 'wp-detail' }, `Przytrzymaj akord. Tonacja: ${keyName(key, true)}.`), pedalChip());
     return;
   }
   box.classList.remove('idle');
@@ -590,7 +626,23 @@ function renderWhat() {
     r.number ? el('span', { class: 'wp-num' }, r.number) : null,
     el('span', { class: 'wp-detail' }, r.detail),
     r.alts && r.alts.length ? el('span', { class: 'wp-alt' }, `albo: ${r.alts.join(', ')}`) : null,
-    lines.length ? el('ul', { class: 'wp-lines' }, lines.slice(0, 5).map((t) => el('li', {}, t))) : null);
+    lines.length ? el('ul', { class: 'wp-lines' }, lines.slice(0, 5).map((t) => el('li', {}, t))) : null, pedalChip());
+}
+
+function pedalTick() {
+  const verdicts = coach.tick(secs());
+  if (!verdicts.length) return;
+  const day = store.dayRec();
+  for (const v of verdicts) day[`pedal_${v.kind}`] = (day[`pedal_${v.kind}`] || 0) + 1;
+  const last = verdicts[verdicts.length - 1];
+  pedalMsg = { kind: last.kind, text: VERDICT_TEXT[last.kind], until: Date.now() + 4000 };
+  renderWhat();
+  setTimeout(renderWhat, 4100);
+}
+
+function pedalChip() {
+  if (!pedalMsg || Date.now() > pedalMsg.until) return null;
+  return el('span', { class: `wp-pedal ${pedalMsg.kind}` }, pedalMsg.text);
 }
 
 function updateTodayPill() {
@@ -618,6 +670,8 @@ async function main() {
   bus.on(onBus);
   bus.connect();
   try { insight = await bus.getJSON('/api/insights'); } catch { insight = null; }
+  try { weekRep = await bus.getJSON('/api/week'); } catch { weekRep = null; }
+  setInterval(pedalTick, 250);
   go('kolo');
   renderWhat();
   onKeyChange(() => { const b = document.getElementById('whatplay'); const m = document.getElementById('whatmini'); if (!held.size) { if (b) fill(b); if (m) fill(m); } renderWhat(); });

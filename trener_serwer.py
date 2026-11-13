@@ -12,7 +12,8 @@ network (iPhone, another computer) only with the key from klucz-telefonu.txt
   GET  /api/now          {"now": unix time} (the router's clock: same machine)
   GET  /api/data         saved progress (trener-dane.json)
   POST /api/data         save progress (atomic, daily backup)
-  GET  /api/insights     a few numbers from notes.csv (last 3 days of playing)
+  GET  /api/insights     a few numbers from the router's note files (last 3 days of playing)
+  GET  /api/week         weekly dynamics report (this week vs the last one) and one task
   GET  /api/phone        (this PC only) the address with the key, for the QR code
 Stdlib only, so it runs with the same Python as the router.
 """
@@ -38,10 +39,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import notes_report
+
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "web"
 DATA_FILE = ROOT / "trener-dane.json"
-NOTES_CSV = ROOT.parent / "notes.csv"
+NOTES_DIR = ROOT.parent / "notes"   # 13.11: the router writes one file per ISO week (notes-RRRR-Wtt.csv)
 ROUTER = ("127.0.0.1", 47800)
 HTTP_ADDR = ("0.0.0.0", 47810)
 VERSION = "1.8"
@@ -220,25 +223,14 @@ class Bus:
 _insight_cache = {"at": 0.0, "value": None}
 
 
-def insights(path: Path = NOTES_CSV, days: int = 3) -> dict:
+def insights(folder: Path = NOTES_DIR, days: int = 3) -> dict:
     if time.time() - _insight_cache["at"] < 60 and _insight_cache["value"] is not None:
         return _insight_cache["value"]
     out = {"ok": False}
     try:
-        size = path.stat().st_size
-        with path.open("rb") as f:
-            f.seek(max(0, size - 3_000_000))
-            raw = f.read().decode("ascii", errors="ignore").splitlines()[1:]
         since = time.time() - days * 86400
         white, black, per_day = [], [], {}
-        for line in raw:
-            parts = line.split(",")
-            if len(parts) < 4 or parts[1] != "on":
-                continue
-            try:
-                t, note, vel = float(parts[0]), int(parts[2]), int(parts[3])
-            except ValueError:
-                continue
+        for t, note, vel, _out in notes_report.recent_rows(folder, days + 1):
             if t < since:
                 continue
             (black if note % 12 in BLACK else white).append(vel)
@@ -256,6 +248,21 @@ def insights(path: Path = NOTES_CSV, days: int = 3) -> dict:
     except OSError:
         pass
     _insight_cache.update(at=time.time(), value=out)
+    return out
+
+
+_week_cache = {"at": 0.0, "value": None}
+
+
+def week(folder: Path = NOTES_DIR) -> dict:
+    if time.time() - _week_cache["at"] < 120 and _week_cache["value"] is not None:
+        return _week_cache["value"]
+    try:
+        out = notes_report.week_report(folder)
+    except Exception:
+        logging.exception("week report failed")
+        out = {"ok": False}
+    _week_cache.update(at=time.time(), value=out)
     return out
 
 
@@ -460,6 +467,8 @@ def make_handler(bus: Bus):
                 return self._json(load_data())
             if path == "/api/insights":
                 return self._json(insights())
+            if path == "/api/week":
+                return self._json(week())
             if path == "/":
                 path = "/index.html"
             target = (WEB / path.lstrip("/")).resolve()

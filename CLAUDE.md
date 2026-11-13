@@ -94,6 +94,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 - `music.js`: generatory i ocenianie dla starszych trybów.
 - `colors.js`: kolory funkcji T/S/D.
 - `fingers.js`, `scaledetect.js`, `smartloop.js`, `mastery.js` („umiem”, powtórki), `feedback.js`, `suggest.js` (kostka, podpowiedzi).
+- `pedalcoach.js` (13.11): przy każdej zmianie harmonii ocenia pedał: `good` (zmieniony zaraz po akordzie), `blur` (trzymany przez zmianę), `early` (puszczony za wcześnie). Werdykt na chwilę w „Co ja gram?”, licznik dnia `days[d].pedal_*`, panel „Pedał dziś” w Planie dnia.
 
 **Zespół**
 - `grooves.js`:
@@ -118,7 +119,8 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 - `echo`, `dynamika`, `akordy` (Siłownia), `docelowe`, `ucho`, `aksak`, `fiszki`, `wolne`.
 
 **Serwer:** `trener_serwer.py`:
-- GET `/`, `/api/events` (SSE), `/api/now`, `/api/data`, `/api/insights`, `/api/phone`;
+- GET `/`, `/api/events` (SSE), `/api/now`, `/api/data`, `/api/insights`, `/api/week`, `/api/phone`;
+- `notes_report.py` (13.11): czyta tygodniowe pliki routera `../notes/notes-RRRR-Wtt.csv`; `/api/week` = dynamika tego tygodnia i poprzedniego oraz jedno zadanie (karta „Twoja dynamika” w Planie dnia); `/api/insights` też czyta stąd. Czarne i białe porównuje na surowej sile bez „1”, bo krzywa routera i dziura w czarnych klawiszach zaniżają czarne;
 - POST `/api/play`, `/api/stop`, `/api/data`, `/api/quit`;
 - `VERSION = "1.8"`.
 
@@ -136,9 +138,9 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, 123 testy. Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 130 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
-- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
+- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
 ## Wdrożenie (z chmury na PC)
 

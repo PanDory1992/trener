@@ -232,7 +232,7 @@ def main():
                 print("jam board:", page.inner_text(".jam-board").replace("\n", " | ")[:160])
                 print("jam trainer notes:", len(user.trainer) - before, "trail:", page.inner_text(".trail").replace("\n", " "))
                 page.get_by_role("radio", name="Ty: akordy").click()
-                page.locator("label:has-text('Zespół (perkusja') input").check()
+                page.locator("label:has-text('Perkusja i bas') input").check()
                 page.wait_for_timeout(7000)
                 page.screenshot(path=str(shots / "10-jam-band.png"))
                 print("channels seen:", sorted({hex(x) for x in user.statuses}))
@@ -248,7 +248,7 @@ def main():
                 page.wait_for_timeout(300)
                 page.screenshot(path=str(shots / "11-jam-custom.png"))
                 print("custom:", " | ".join(page.locator(".pe-list .pe-num").all_inner_texts()))
-                page.locator("label:has-text('Zespół (perkusja') input").uncheck()
+                page.locator("label:has-text('Perkusja i bas') input").uncheck()
 
                 # Echo: perfect copies should pass and raise the level
                 user.set("echo")

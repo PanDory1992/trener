@@ -89,7 +89,7 @@ def main():
                     n0 = len(played)
                 pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()
                 pg.wait_for_timeout(9000)
-                pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+                pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
                 pg.wait_for_timeout(400)
                 with lock:
                     drums = [x for x in played[n0:] if x[1] == 9]

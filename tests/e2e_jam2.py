@@ -109,7 +109,7 @@ def main():
             ok("drum fill came", len(toms) >= 4, f"tom hits={len(toms)}")
             ok("crash on the new part", len(crash) >= 1, f"crash={len(crash)}")
             pg.screenshot(path=str(SCRATCH / "j1-song.png"))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             pg.wait_for_timeout(300)
 
             # --- the new grooves start and play drums --------------------------------------------------------------
@@ -122,7 +122,7 @@ def main():
                 with lock:
                     drums = [x for x in played[n0:] if x[1] == 9]
                 ok(f"{name} plays", len(drums) > 5, f"drum hits={len(drums)}")
-                pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+                pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
                 pg.wait_for_timeout(300)
             b.close()
     finally:

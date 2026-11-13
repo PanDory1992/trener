@@ -30,7 +30,8 @@ export function mount(stage, ctx) {
     el('button', { class: 'btn', onclick: () => replay() }, 'Zagraj jeszcze raz'),
     el('button', { class: 'btn', onclick: () => hint() }, 'Podpowiedź'),
     el('button', { class: 'btn ghost', onclick: () => giveUp() }, 'Pokaż rozwiązanie'));
-  add(stage, head, line, dotsRow, extra, actions);
+  add(stage, head, line, dotsRow, extra);
+  ctx.dock(actions);
   const setStatus = (t, k = '') => fill(line, status(t, k));
 
   function render() {

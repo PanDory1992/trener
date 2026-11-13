@@ -194,7 +194,7 @@ def main():
                 if any("okrążenie 3" in x for x in statuses):
                     break
             ok("Jam C → D♭ → D", [x.split(" ·")[0] for x in statuses[:3]] == ["C-dur", "D♭-dur", "D-dur"], str(statuses))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
 
             # --- 4b. a stale window (old tab / other device) saves its copy: progress is kept ------------------------
             before = data()["mastery"]

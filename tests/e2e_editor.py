@@ -152,7 +152,7 @@ def main():
             bass = [x for x in got if x[1] == 1]
             ok("band keys on channel 3, one note at a time (arpeggio)", len(keys) >= 8 and len({round(x[0], 2) for x in keys}) >= 6, f"keys={len(keys)}")
             ok("slash bass: E under the first chord", any(x[2] % 12 == 4 for x in bass[:3]), str([x[2] for x in bass[:6]]))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             pg.wait_for_timeout(300)
 
             # --- live bass follows your chords (Ty: akordy) ------------------------------------------------------
@@ -169,7 +169,7 @@ def main():
             with lock:
                 lb = [x for x in played[n1:] if x[1] == 1]
             ok("live bass follows the held chord (D)", sum(1 for x in lb if x[2] % 12 == 2) >= 1, str([x[2] for x in lb]))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             pg.wait_for_timeout(300)
 
             # --- save as a song ---------------------------------------------------------------------------------

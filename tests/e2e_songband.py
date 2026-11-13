@@ -81,10 +81,10 @@ def main():
             # --- 1. drums + bass, this section ----------------------------------------------------------------------
             row = pg.locator("#dockbar")
             who = row.locator(".who-seg")
-            ok("the play bar asks who plays: Sam / Perkusja i bas / Cały zespół", who.get_by_role("radio").count() == 3 and "Perkusja i bas" in who.inner_text())
+            ok("the play bar asks who plays: Sam / Perkusja i bas / Cały zespół", who.get_by_role("radio").count() == 3 and "Ty: akordy" in who.inner_text())
             ok("Sam: Pokaż and Graj ze mną in the bar", row.get_by_role("button", name="Graj ze mną").count() == 1 and row.get_by_role("button", name="Pokaż").count() == 1)
             ok("the bar is not on the card any more", pg.locator("#stage .play-row").count() == 0)
-            who.get_by_role("radio", name="Perkusja i bas").click()
+            who.get_by_role("radio", name="Ty: akordy").click()
             pg.wait_for_timeout(300)
             ok("band: style list and both buttons", row.locator(".band-style").count() == 1 and row.get_by_role("button", name="▶ Cała piosenka").count() == 1)
             t0 = time.time()
@@ -108,7 +108,7 @@ def main():
             ok("Stop: no chord lit", pg.locator(".sc-ch.band-now").count() == 0)
 
             # --- 2. the whole band, style remembered per song ---------------------------------------------------------
-            row.locator(".who-seg").get_by_role("radio", name="Cały zespół").click()
+            row.locator(".who-seg").get_by_role("radio", name="Ty: solo / śpiew").click()
             pg.wait_for_timeout(300)
             pg.locator(".band-style").select_option("ballada")
             pg.wait_for_timeout(1500)     # the page saves 0.8 s after a change
@@ -126,7 +126,7 @@ def main():
             t4 = time.time()
             pg.wait_for_timeout(1200)
             ok("Sam stops the band", not since(t4) and "■ Stop" not in row.inner_text(), str(len(since(t4))))
-            row.locator(".who-seg").get_by_role("radio", name="Cały zespół").click()
+            row.locator(".who-seg").get_by_role("radio", name="Ty: solo / śpiew").click()
             pg.wait_for_timeout(300)
 
             # --- 3. a long song goes in pieces (the server takes 4000 events per request) -------------------------------

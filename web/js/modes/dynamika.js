@@ -24,7 +24,8 @@ export function mount(stage, ctx) {
   const actions = el('div', { class: 'actions' },
     el('button', { class: 'btn primary', onclick: () => next() }, 'Start'),
     el('button', { class: 'btn', onclick: () => phrase ? present(phrase) : next() }, 'Zagraj jeszcze raz'));
-  add(stage, head, line, notesRow, actions, result);
+  add(stage, head, line, notesRow, result);
+  ctx.dock(actions);
 
   const setStatus = (t, k = '') => fill(line, status(t, k));
 

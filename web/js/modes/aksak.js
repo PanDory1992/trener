@@ -23,9 +23,10 @@ export function mount(stage, ctx) {
   const result = el('div', { class: 'result' });
   const actions = el('div', { class: 'actions' },
     el('button', { class: 'btn primary', onclick: () => start() }, 'Start'),
-    el('button', { class: 'btn', onclick: () => stopRound('Zatrzymane.') }, 'Stop'),
+    el('button', { class: 'btn', onclick: () => stopRound('Zatrzymane.') }, '■ Stop'),
     el('button', { class: 'btn ghost', onclick: () => calibrate() }, 'Zmierz opóźnienie'));
-  add(stage, head, controls, line, clockWrap, result, actions);
+  add(stage, head, controls, line, clockWrap, result);
+  ctx.dock(actions);
   const setStatus = (t, k = '') => fill(line, status(t, k));
 
   controls.append(el('label', { class: 'field' }, el('span', {}, 'Metrum'),

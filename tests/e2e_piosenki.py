@@ -169,7 +169,7 @@ def main():
             pg.wait_for_timeout(4000)
             ok("Jam plays it", pg.locator(".jb-status").count() == 1 and "a-moll" in pg.inner_text(".jb-status"), pg.inner_text(".jb-status") if pg.locator(".jb-status").count() else "")
             pg.screenshot(path=str(shots / "p4-jam.png"))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             b.close()
     finally:
         server.terminate()

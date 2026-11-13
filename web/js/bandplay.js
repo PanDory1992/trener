@@ -3,8 +3,8 @@
 import { jamCycle, countIn } from './grooves.js';
 
 export const BAND_MODES = [
-  ['rytm', 'Perkusja i bas', 'Zespół gra perkusję i bas. Akordy grasz ty.'],
-  ['calosc', 'Cały zespół', 'Perkusja, bas i klawisze (kanał 3), jak w Jamie. Ty możesz śpiewać albo grać melodię.'],
+  ['rytm', 'Ty: akordy', 'Zespół gra perkusję i bas. Akordy grasz ty.'],
+  ['calosc', 'Ty: solo / śpiew', 'Perkusja, bas i klawisze (kanał 3), jak w Jamie. Ty możesz śpiewać albo grać melodię.'],
 ];
 
 /** One pass of the song (or a section) with the band. countIn only on the first lap. */

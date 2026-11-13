@@ -113,13 +113,13 @@ def main():
             pg.click("nav >> text=Jam")
             pg.wait_for_timeout(400)
             open_jam_settings(pg)
-            pg.get_by_role("radio", name="krok w prawo").click()
+            pg.get_by_role("radio", name="po kole →").click()
             pg.get_by_role("radio", name="stałe").click()
             start = pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True)
             # 4. fast Stop → Start: only one band
             start.click()
             pg.wait_for_timeout(150)
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()
             pg.wait_for_timeout(1500)
             # pick F-dur by hand
@@ -145,7 +145,7 @@ def main():
             # one band only: count trainer note-ons over one bar vs a clean single run is hard; check no lap was scheduled twice
             dup = len(statuses) != len(set(statuses))
             ok("no duplicated laps after fast Stop/Start", not dup, str(statuses))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             b.close()
     finally:
         server.terminate()

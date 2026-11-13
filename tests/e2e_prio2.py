@@ -288,7 +288,7 @@ def main():
             chal = pg.inner_text(".jam-chal")
             ok("Jam: chord tones share, live", re.search(r"Dźwięki akordu: \d+ z 4", chal), chal.replace("\n", " | "))
             pg.screenshot(path=str(shots / "p2-10-jam-chal.png"))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             pg.wait_for_timeout(500)
             # Pytanie–odpowiedź with the band (bass on its own channel): the piano is silent in your bars
             pg.locator("label:has-text('Zespół (perkusja') input").check()
@@ -301,7 +301,7 @@ def main():
                 turns.append((time.time(), tt))
                 time.sleep(0.03)
             pg.screenshot(path=str(shots / "p2-11-jam-qa.png"))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             kinds = {t for _, t in turns}
             ok("Pytanie–odpowiedź: the board says 'teraz ty' and 'słuchaj'", {"teraz ty", "słuchaj"} <= kinds, str(kinds))
 

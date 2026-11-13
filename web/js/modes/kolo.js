@@ -448,7 +448,7 @@ export function mount(stage, ctx) {
   }
 
   function why(text, extra = null) {
-    return el('details', { class: 'why', open: st.whyOpen !== false && !compact(), ontoggle: (e) => { st.whyOpen = e.target.open; store.save(); } },
+    return el('details', { class: 'why', open: st.whyOpen === true && !compact(), ontoggle: (e) => { st.whyOpen = e.target.open; store.save(); } },
       el('summary', {}, 'Dlaczego?'), el('p', {}, text), extra);
   }
 

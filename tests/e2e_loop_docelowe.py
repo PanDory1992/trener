@@ -58,7 +58,7 @@ def main():
                     reached = st
                     break
             print("OK " if reached else "BAD", "chorus 6 reached:", reached, "| score:", pg.inner_text(".score-row").replace("\n", " "))
-            pg.get_by_role("button", name="Stop", exact=True).click()
+            pg.get_by_role("button", name="■ Stop", exact=True).click()
             pg.wait_for_timeout(800)
             cards = pg.locator(".chorus-cards .cc").count()
             print("OK " if cards >= 5 else "BAD", "results after stop:", cards, "choruses")

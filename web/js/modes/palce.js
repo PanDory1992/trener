@@ -280,7 +280,7 @@ export function mount(stage, ctx) {
       reviewBox, strip, progBox,
       ctx.dock(el('div', { class: 'play-row' }, show, play, loopButton(), ways, tempo)),
       line, statsBox,
-      el('details', { class: 'why', open: st.howOpen !== false, ontoggle: (e) => { st.howOpen = e.target.open; store.save(); } },
+      el('details', { class: 'why', open: st.howOpen === true, ontoggle: (e) => { st.howOpen = e.target.open; store.save(); } },
         el('summary', {}, 'Jak ćwiczyć'), el('p', {}, HOW[st.ex])));
     if (!live) setStatus(st.ex === 'zawolanie' ? 'Zobacz numer, zagraj palcem. Bez świateł: podpowiedź pojawi się po dwóch pomyłkach.' : WAYS[st.way].help);
     renderProgress();

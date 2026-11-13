@@ -54,7 +54,7 @@ export function mount(stage, ctx) {
       el('div', { class: 'due-hero' },
         el('div', {}, el('div', { class: 'due-num' }, String(due.length)), el('div', { class: 'due-label' }, due.length ? `${plural(due.length, 'fiszka czeka', 'fiszki czekają', 'fiszek czeka')} na dziś` : 'Na dziś nic. Wszystko powtórzone.')),
         el('div', { class: 'actions' },
-          el('button', { class: 'btn primary', disabled: !due.length, onclick: () => review(due) }, due.length ? 'Powtórz teraz' : 'Brak powtórek'),
+          due.length ? el('button', { class: 'btn primary', onclick: () => review(due) }, 'Powtórz teraz') : null,
           el('button', { class: 'btn', onclick: () => record() }, 'Nagraj własny motyw'))),
       umiemSection(),
       cards.length ? el('div', { class: 'card-list' }, cards.map((c) => el('div', { class: `card-row ${c.paused ? 'paused' : ''}` },

@@ -38,8 +38,9 @@ export function mount(stage, ctx) {
   const result = el('div', { class: 'result' });
   const actions = el('div', { class: 'actions' },
     el('button', { class: 'btn primary', onclick: () => start() }, 'Start'),
-    el('button', { class: 'btn', onclick: () => stopRun('Zatrzymane.') }, 'Stop'));
-  add(stage, head, controls, line, score, lane, result, actions);
+    el('button', { class: 'btn', onclick: () => stopRun('Zatrzymane.') }, '■ Stop'));
+  add(stage, head, controls, line, score, lane, result);
+  ctx.dock(actions);
   const setStatus = (t, k = '') => fill(line, status(t, k));
 
   controls.append(el('label', { class: 'field' }, el('span', {}, 'Progresja'),

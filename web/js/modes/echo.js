@@ -28,7 +28,8 @@ export function mount(stage, ctx) {
     el('button', { class: 'btn primary', onclick: () => next() }, 'Start'),
     el('button', { class: 'btn', onclick: () => replay() }, 'Zagraj jeszcze raz'),
     card ? null : el('button', { class: 'btn ghost', onclick: () => addCard() }, 'Dodaj do fiszek'));
-  add(stage, head, line, actions, info, result);
+  add(stage, head, line, info, result);
+  ctx.dock(actions);   // Start and the rest: in the play bar above the keys, like in the main modes
 
   function setStatus(text, kind = '') { fill(line, status(text, kind)); }
 

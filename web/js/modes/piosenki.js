@@ -435,10 +435,10 @@ export function mount(stage, ctx) {
     band.raf = requestAnimationFrame(tick);
     await playPass(null);
   }
-  const WHO = [['sam', 'Sam', 'Bez zespołu: świecę klawisze i czekam albo prowadzę w tempie.'], ...BAND_MODES];
+  const WHO = [['sam', 'Sam', 'Bez zespołu: świecę klawisze i czekam albo prowadzę w tempie.'], ...BAND_MODES];   // labels: see BAND_MODES
   /** The bar above the keyboard: who plays, then the buttons for that (always in the same place). */
   function dockRow(song, guideCtl) {
-    const who = el('div', { class: 'seg-ctl small who-seg', role: 'radiogroup', 'aria-label': 'Kto gra' },
+    const who = el('div', { class: 'seg-ctl small who-seg', role: 'radiogroup', 'aria-label': 'Twoja rola' },
       WHO.map(([v, t, help]) => el('button', { class: st.who === v ? 'on' : '', role: 'radio', 'aria-checked': String(st.who === v), title: help,
         onclick: () => { if (st.who === v) return; stopBand(); guide.stop(); bus.stop(); st.who = v; if (v !== 'sam') st.bandMode = v; store.save(); renderCard(); } }, t)));
     if (st.who === 'sam') {

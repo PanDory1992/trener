@@ -135,7 +135,7 @@ def main():
             pg.click("nav >> text=Jam")
             pg.wait_for_timeout(400)
             open_jam_settings(pg)
-            pg.get_by_role("radio", name="krok w prawo").click()
+            pg.get_by_role("radio", name="po kole →").click()
             pg.get_by_role("radio", name="+4").click()
             pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()
             statuses = set()
@@ -149,7 +149,7 @@ def main():
             ok("jam walks C → G → D with +4 BPM", any(x.startswith("G-dur · 100 BPM · okrążenie 2") for x in statuses) and any(x.startswith("D-dur · 104 BPM · okrążenie 3") for x in statuses))
             ok("the whole Trener follows the key", "D" in pg.inner_text("#whatplay") or True)
             pg.screenshot(path=str(shots / "p1-05-jam-walk.png"))
-            pg.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+            pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             b.close()
     finally:
         server.terminate()

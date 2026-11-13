@@ -416,7 +416,7 @@ function renderSettings(stage) {
   const s = store.data.settings;
   const row = (label, help, control) => el('div', { class: 'set-row' }, el('div', {}, el('b', {}, label), el('p', {}, help)), control);
   add(stage, 
-    el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, 'Ustawienia'))),
+    el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, 'Ustawienia'), el('p', { class: 'mode-sub' }, 'Dźwięk, światła, klik i telefon. Zmiany zapisują się od razu.'))),
     el('div', { class: 'settings' },
       row('Nazwy dźwięków', 'Polskie: H i B (B = B♭). Angielskie: B i B♭, jak w akordach jazzowych i na YouTube.',
         el('select', { onchange: (e) => { s.hNames = e.target.value === 'h'; prefs.hNames = s.hNames; store.save(); } },
@@ -459,7 +459,7 @@ function clickRow(row, s) {
 }
 
 function renderHelp(stage) {
-  add(stage, el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, 'Jak to działa'))),
+  add(stage, el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, 'Jak to działa'), el('p', { class: 'mode-sub' }, 'Krótko o każdym trybie i o tym, co robią przyciski. Kliknij temat, żeby go rozwinąć.'))),
     el('div', { class: 'help' }, HELP.map(([title, body, color]) => el('details', { class: 'help-item', style: { '--c': color } }, el('summary', {}, title), el('div', { html: body })))));
 }
 

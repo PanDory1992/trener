@@ -135,7 +135,7 @@ def main():
             ph.wait_for_timeout(2000)
             ph.screenshot(path=str(shots / "p09-jam-running.png"))
             print("jam trail:", ph.inner_text(".trail").replace("\n", " "))
-            ph.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).tap()
+            ph.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).tap()
             ph.locator(".jam-set > summary").tap()
             ph.wait_for_timeout(300)
             ph.screenshot(path=str(shots / "p10-jam-settings.png"))

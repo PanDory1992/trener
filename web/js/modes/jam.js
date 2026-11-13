@@ -113,7 +113,7 @@ export function mount(stage, ctx) {
   ctx.dock(el('div', { class: 'dock-stack' },
     el('div', { class: 'actions jam-actions' }, startBtn, dockDyn, chalPick,
       el('button', { class: 'btn', onclick: () => saveJam() }, 'Zapisz ten jam'),
-      el('label', { class: 'field inline' }, lightsBox, el('span', {}, 'Światła'))),
+      el('label', { class: 'field inline', title: 'Światła na klawiszach (C58 też włącza i wyłącza)' }, lightsBox, el('span', {}, 'Światła na klawiszach'))),
     // what you played, as numbers in the key: right under the buttons, close to the keys
     el('div', { class: 'trail-wrap' }, el('span', { class: 'doors-label' }, 'Co grasz:'), trailBox)));
 
@@ -175,8 +175,9 @@ export function mount(stage, ctx) {
       el('label', { class: 'field inline' }, el('span', {}, 'Styl'),
         el('select', { class: 'jam-style', 'aria-label': 'Styl', onchange: (e) => pickStyle(e.target.value) },
           GROOVE_GROUPS.map(([gname, ids]) => el('optgroup', { label: gname }, ids.map((gid) => GROOVE[gid]).filter(Boolean).map((x) => el('option', { value: x.id, selected: x.id === st.groove }, `${x.name} · ${x.meter}`)))))),
-      el('label', { class: 'field inline tempo-field' }, el('span', {}, `Tempo ${st.tempo}`),
-        el('input', { type: 'range', min: String(g.range[0]), max: String(g.range[1]), step: '2', value: String(st.tempo), oninput: (e) => { st.tempo = Number(e.target.value); e.target.previousSibling.textContent = `Tempo ${st.tempo}`; }, onchange: () => { manual.tempo = true; changed(); } })));
+      el('label', { class: 'field inline tempo-field' }, el('span', {}, 'Tempo'),
+        el('input', { type: 'range', min: String(g.range[0]), max: String(g.range[1]), step: '2', value: String(st.tempo), oninput: (e) => { st.tempo = Number(e.target.value); e.target.nextSibling.textContent = `${st.tempo}`; }, onchange: () => { manual.tempo = true; changed(); } }),
+        el('b', {}, `${st.tempo}`)));
     fill(quick,
       el('label', { class: 'field' }, el('span', {}, 'Tonacja'),
         el('select', { class: 'jam-key', onchange: (e) => { const k = ALL_KEYS[Number(e.target.value)]; key = k; setKey(k); manual.key = true; changed(); } },
@@ -188,14 +189,14 @@ export function mount(stage, ctx) {
           el('option', { value: 'custom', selected: custom }, 'Własna / edytor…'))),
       !custom ? el('button', { class: 'btn tiny', title: 'Skopiuj te akordy do edytora i zmieniaj je jak chcesz', onclick: () => editPreset() }, 'Edytuj te akordy') : null,
       seg('Twoja rola', Object.entries(ROLES).map(([r, info]) => [r, info.name, info.help]), st.role, (v) => { st.role = v; shown.mark = null; changed(); }),
-      el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.band, onchange: (e) => { st.band = e.target.checked; changed(); } }), el('span', {}, 'Zespół (perkusja i bas)')));
+      el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.band, onchange: (e) => { st.band = e.target.checked; changed(); } }), el('span', {}, 'Perkusja i bas')));
     fill(customBox, custom ? customBuilder() : null);
     fill(controls,
       el('div', { class: 'jc-row' },
         seg('Takty na akord', [[1, '1'], [2, '2'], [4, '4']], st.bpc, (v) => { st.bpc = v; changed(); }),
         seg('Barwa', [['auto', 'Jak w stylu'], ['triads', 'Trójdźwięki'], ['sevenths', 'Septymy'], ['ninths', 'Nony']], st.color, (v) => { st.color = v; changed(); })),
       el('div', { class: 'jc-row' },
-        seg('Co okrążenie: tonacja', [[0, 'stoi'], [1, 'krok w prawo', 'C → G → D… (kwinta w górę, coraz więcej krzyżyków)'], [-1, 'krok w lewo', 'C → F → B♭… (kwarta w górę, jak w jazzie)'], ['up', 'pół tonu w górę', 'C → D♭ → D → E♭… (po kolei jak na klawiaturze)']], st.walk, (v) => { st.walk = v; changed(); }),
+        seg('Co okrążenie: tonacja', [[0, 'ta sama tonacja'], [1, 'po kole →', 'C → G → D… (kwinta w górę, coraz więcej krzyżyków)'], [-1, 'po kole ←', 'C → F → B♭… (kwarta w górę, jak w jazzie)'], ['up', 'pół tonu w górę', 'C → D♭ → D → E♭… (po kolei jak na klawiaturze)']], st.walk, (v) => { st.walk = v; changed(); }),
         seg('Co okrążenie: tempo', [[0, 'stałe'], [2, '+2'], [4, '+4']], st.lapBpm, (v) => { st.lapBpm = v; changed(); }),
         el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.click, onchange: (e) => { st.click = e.target.checked; changed(); } }), el('span', {}, 'Klik')),
         el('label', { class: 'field inline', title: 'Co 4 okrążenia (i przed nową tonacją) perkusja gra przejście, a nowa część zaczyna się od talerza.' }, el('input', { type: 'checkbox', checked: st.fills !== false, onchange: (e) => { st.fills = e.target.checked; changed(); } }), el('span', {}, 'Przejścia perkusji')),
@@ -335,9 +336,9 @@ export function mount(stage, ctx) {
     const p = prog();
     fill(below,
       el('div', { class: 'jam-why' },
-        el('details', { class: 'why' }, el('summary', {}, `Dlaczego ${g.name} tak brzmi?`), el('p', {}, g.why)),
-        el('details', { class: 'why' }, el('summary', {}, `${p.name}: dlaczego te akordy?`), el('p', {}, p.why)),
-        el('details', { class: 'why' }, el('summary', {}, 'Co ćwiczysz w tej roli?'), el('p', {}, ROLES[st.role].help))),
+        el('details', { class: 'why', open: st.whyOpen === true, ontoggle: (e) => { st.whyOpen = e.target.open; store.save(); } }, el('summary', {}, `Dlaczego ${g.name} tak brzmi?`), el('p', {}, g.why)),
+        el('details', { class: 'why', open: st.whyOpen === true, ontoggle: (e) => { st.whyOpen = e.target.open; store.save(); } }, el('summary', {}, `${p.name}: dlaczego te akordy?`), el('p', {}, p.why)),
+        el('details', { class: 'why', open: st.whyOpen === true, ontoggle: (e) => { st.whyOpen = e.target.open; store.save(); } }, el('summary', {}, 'Co ćwiczysz w tej roli?'), el('p', {}, ROLES[st.role].help))),
       st.saved.length ? el('div', { class: 'saved' }, el('span', { class: 'doors-label' }, 'Moje jamy'),
         st.saved.map((s, i) => el('span', { class: 'saved-item' },
           el('button', { class: 'door', onclick: () => loadJam(s) }, s.name),

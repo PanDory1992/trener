@@ -236,7 +236,7 @@ def main():
                 page.wait_for_timeout(7000)
                 page.screenshot(path=str(shots / "10-jam-band.png"))
                 print("channels seen:", sorted({hex(x) for x in user.statuses}))
-                page.locator(".jam-actions").get_by_role("button", name="Stop", exact=True).click()
+                page.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
                 page.locator(".jam-actions").get_by_role("button", name="Zapisz ten jam", exact=True).click()
                 page.locator("select").nth(1).select_option("custom")
                 page.wait_for_timeout(300)
@@ -306,7 +306,7 @@ def main():
                 page.wait_for_timeout(14000)
                 page.screenshot(path=str(shots / "08-docelowe-live.png"))
                 print("target score:", page.inner_text(".score-row"))
-                page.get_by_role("button", name="Stop", exact=True).click()
+                page.get_by_role("button", name="■ Stop", exact=True).click()
 
                 # Cards
                 user.set("echo")

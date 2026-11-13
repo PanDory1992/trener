@@ -161,7 +161,7 @@ def main():
             still = len(notes_since(user, t)) > 0 or any(n for n in user.trainer if n[0] >= t)
             ok("Aksak continues into round 2", seen and still, f"status='{st}' results={pg.locator('.result .chip').count()}")
             pg.screenshot(path=str(shots / "l04-aksak-loop.png"))
-            pg.get_by_role("button", name="Stop", exact=True).click()
+            pg.get_by_role("button", name="■ Stop", exact=True).click()
             t = time.time()
             pg.wait_for_timeout(1500)
             with user.lock:

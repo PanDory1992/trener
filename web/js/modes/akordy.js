@@ -40,7 +40,8 @@ export function mount(stage, ctx) {
     el('button', { class: 'btn', onclick: () => listen() }, 'Posłuchaj tego akordu'),
     el('button', { class: 'btn ghost', onclick: () => playProgression() }, 'Zagraj całą progresję'),
     card ? null : el('button', { class: 'btn ghost', onclick: () => addCard() }, 'Dodaj do fiszek'));
-  add(stage, head, card ? null : controls, board, line, stats, actions);
+  add(stage, head, card ? null : controls, board, line, stats);
+  ctx.dock(actions);
 
   const setStatus = (t, k = '') => fill(line, status(t, k));
 

@@ -78,10 +78,13 @@ export function mount(stage, ctx) {
   }
 
   // --- skeleton ---------------------------------------------------------------------------------------------
+  // what you change every time stays in sight (key, chords, your role); the rest folds away under "Więcej ustawień"
+  const quick = el('div', { class: 'jc-row jam-quick' });
+  const customBox = el('div', { class: 'jam-custom-box' });
   const controls = el('div', { class: 'jam-controls' });
   const setSummary = el('summary', { class: 'jam-set-sum' });
-  // on a phone the settings fold away so the board and the keys fit on the screen
-  const controlsWrap = el('details', { class: 'jam-set', open: !document.body.classList.contains('compact') }, setSummary, controls);
+  const controlsWrap = el('details', { class: 'jam-set', open: st.setOpen === true && !document.body.classList.contains('compact'), ontoggle: (e) => { st.setOpen = e.target.open; store.save(); } }, setSummary, controls);
+  const dockDyn = el('span', { class: 'jam-dock-dyn' });   // style and tempo, rebuilt with the controls
   const board = el('div', { class: 'jam-board' });
   const chalBox = el('div', { class: 'jam-chal', 'aria-live': 'polite' });
   const chalSel = el('select', { 'aria-label': 'Wyzwanie', onchange: (e) => {
@@ -102,12 +105,14 @@ export function mount(stage, ctx) {
     el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' },
       el('h1', {}, 'Jam'),
       el('p', { class: 'mode-sub' }, 'Wybierz styl i akordy. Ja gram zespół, ty swoją partię. Nikt cię nie ocenia, po prostu grasz.'))),
-    controlsWrap, board, chalBox,
-    el('div', { class: 'actions jam-actions' }, startBtn, chalPick,
-      el('button', { class: 'btn', onclick: () => saveJam() }, 'Zapisz ten jam'),
-      el('label', { class: 'field inline' }, lightsBox, el('span', {}, 'Światła na klawiszach'))),
+    quick, customBox, controlsWrap, board, chalBox,
     el('div', { class: 'trail-wrap' }, el('span', { class: 'doors-label' }, 'Co grasz (numery w tonacji)'), trailBox),
     below);
+
+  // the play bar above the keyboard: Start, style, tempo, challenge, save, lights
+  ctx.dock(el('div', { class: 'actions jam-actions' }, startBtn, dockDyn, chalPick,
+    el('button', { class: 'btn', onclick: () => saveJam() }, 'Zapisz ten jam'),
+    el('label', { class: 'field inline' }, lightsBox, el('span', {}, 'Światła'))));
 
   function prog() {
     if (st.prog[key.mode] === 'custom') {
@@ -152,47 +157,50 @@ export function mount(stage, ctx) {
   function renderControls() {
     const g = GROOVE[st.groove];
     const p = prog();
-    fill(setSummary, el('b', {}, 'Ustawienia'), el('span', {}, `${g.name} · ${p.name} · ${keyName(key, true)} · ${st.tempo} BPM · ${ROLES[st.role].name}`));
+    fill(setSummary, el('b', {}, 'Więcej ustawień'), el('span', {}, `${g.name} · ${p.name} · ${keyName(key, true)} · ${st.tempo} BPM · ${ROLES[st.role].name} · barwa, takty, perkusista, klawisze zespołu…`));
     const seg = (label, items, cur, set) => el('div', { class: 'jc' }, el('span', { class: 'jc-label' }, label),
       el('div', { class: 'seg-ctl small', role: 'radiogroup', 'aria-label': label }, items.map(([v, t, title]) => el('button', { class: cur === v ? 'on' : '', role: 'radio', 'aria-checked': String(cur === v), title: title || null, onclick: () => set(v) }, t))));
     const changed = () => { store.save(); renderControls(); renderBelow(); updateChalPick(); if (running) toast('Zmiana zabrzmi od następnego obrotu.'); else idleBoard(); };
     const custom = p.id === 'custom' || st.prog[key.mode] === 'custom';
+    const pickStyle = (id) => {
+      const x = GROOVE[id];
+      st.groove = x.id; st.tempo = x.tempo; manual.tempo = true;
+      if (st.prog[key.mode] !== 'custom') st.prog[key.mode] = x.suggest[key.mode];
+      changed();
+    };
+    fill(dockDyn,
+      el('label', { class: 'field inline' }, el('span', {}, 'Styl'),
+        el('select', { class: 'jam-style', 'aria-label': 'Styl', onchange: (e) => pickStyle(e.target.value) },
+          GROOVE_GROUPS.map(([gname, ids]) => el('optgroup', { label: gname }, ids.map((gid) => GROOVE[gid]).filter(Boolean).map((x) => el('option', { value: x.id, selected: x.id === st.groove }, `${x.name} · ${x.meter}`)))))),
+      el('label', { class: 'field inline tempo-field' }, el('span', {}, `Tempo ${st.tempo}`),
+        el('input', { type: 'range', min: String(g.range[0]), max: String(g.range[1]), step: '2', value: String(st.tempo), oninput: (e) => { st.tempo = Number(e.target.value); e.target.previousSibling.textContent = `Tempo ${st.tempo}`; }, onchange: () => { manual.tempo = true; changed(); } })));
+    fill(quick,
+      el('label', { class: 'field' }, el('span', {}, 'Tonacja'),
+        el('select', { class: 'jam-key', onchange: (e) => { const k = ALL_KEYS[Number(e.target.value)]; key = k; setKey(k); manual.key = true; changed(); } },
+          el('optgroup', { label: 'Durowe' }, ALL_KEYS.map((k, i) => (k.mode === 'major' ? el('option', { value: i, selected: keyName(k) === keyName(key) }, keyName(k, true)) : null))),
+          el('optgroup', { label: 'Molowe' }, ALL_KEYS.map((k, i) => (k.mode === 'minor' ? el('option', { value: i, selected: keyName(k) === keyName(key) }, keyName(k, true)) : null))))),
+      el('label', { class: 'field' }, el('span', {}, 'Akordy'),
+        el('select', { class: 'jam-prog', onchange: (e) => { st.prog[key.mode] = e.target.value; changed(); } },
+          progsFor(key.mode).map((x) => el('option', { value: x.id, selected: x.id === p.id }, `${x.name} (${x.mood})`)),
+          el('option', { value: 'custom', selected: custom }, 'Własna / edytor…'))),
+      !custom ? el('button', { class: 'btn tiny', title: 'Skopiuj te akordy do edytora i zmieniaj je jak chcesz', onclick: () => editPreset() }, 'Edytuj te akordy') : null,
+      seg('Twoja rola', Object.entries(ROLES).map(([r, info]) => [r, info.name, info.help]), st.role, (v) => { st.role = v; shown.mark = null; changed(); }),
+      el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.band, onchange: (e) => { st.band = e.target.checked; changed(); } }), el('span', {}, 'Zespół (perkusja i bas)')));
+    fill(customBox, custom ? customBuilder() : null);
     fill(controls,
-      el('div', { class: 'groove-grid', role: 'radiogroup', 'aria-label': 'Styl' }, GROOVE_GROUPS.flatMap(([gname, ids]) => [el('span', { class: 'groove-group' }, gname), ...ids.map((gid) => GROOVE[gid]).filter(Boolean).map((x) => el('button', {
-        class: `groove ${x.id === st.groove ? 'on' : ''} ${x.color2 ? 'color' : ''}`, role: 'radio', 'aria-checked': String(x.id === st.groove),
-        onclick: () => {
-          st.groove = x.id; st.tempo = x.tempo; manual.tempo = true;
-          if (st.prog[key.mode] !== 'custom') st.prog[key.mode] = x.suggest[key.mode];
-          changed();
-        },
-      }, el('b', {}, x.name), el('span', {}, x.meter)))])),
       el('div', { class: 'jc-row' },
-        el('label', { class: 'field' }, el('span', {}, 'Tonacja'),
-          el('select', { class: 'jam-key', onchange: (e) => { const k = ALL_KEYS[Number(e.target.value)]; key = k; setKey(k); manual.key = true; changed(); } },
-            el('optgroup', { label: 'Durowe' }, ALL_KEYS.map((k, i) => (k.mode === 'major' ? el('option', { value: i, selected: keyName(k) === keyName(key) }, keyName(k, true)) : null))),
-            el('optgroup', { label: 'Molowe' }, ALL_KEYS.map((k, i) => (k.mode === 'minor' ? el('option', { value: i, selected: keyName(k) === keyName(key) }, keyName(k, true)) : null))))),
-        el('label', { class: 'field' }, el('span', {}, 'Akordy'),
-          el('select', { onchange: (e) => { st.prog[key.mode] = e.target.value; changed(); } },
-            progsFor(key.mode).map((x) => el('option', { value: x.id, selected: x.id === p.id }, `${x.name} (${x.mood})`)),
-            el('option', { value: 'custom', selected: custom }, 'Własna / edytor…'))),
-        !custom ? el('button', { class: 'btn tiny', title: 'Skopiuj te akordy do edytora i zmieniaj je jak chcesz', onclick: () => editPreset() }, 'Edytuj te akordy') : null,
-        el('label', { class: 'field tempo-field' }, el('span', {}, `Tempo ${st.tempo}`),
-          el('input', { type: 'range', min: String(g.range[0]), max: String(g.range[1]), step: '2', value: String(st.tempo), oninput: (e) => { st.tempo = Number(e.target.value); e.target.previousSibling.textContent = `Tempo ${st.tempo}`; }, onchange: () => { manual.tempo = true; changed(); } })),
         seg('Takty na akord', [[1, '1'], [2, '2'], [4, '4']], st.bpc, (v) => { st.bpc = v; changed(); }),
         seg('Barwa', [['auto', 'Jak w stylu'], ['triads', 'Trójdźwięki'], ['sevenths', 'Septymy'], ['ninths', 'Nony']], st.color, (v) => { st.color = v; changed(); })),
       el('div', { class: 'jc-row' },
-        seg('Twoja rola', Object.entries(ROLES).map(([r, info]) => [r, info.name, info.help]), st.role, (v) => { st.role = v; shown.mark = null; changed(); }),
         seg('Co okrążenie: tonacja', [[0, 'stoi'], [1, 'krok w prawo', 'C → G → D… (kwinta w górę, coraz więcej krzyżyków)'], [-1, 'krok w lewo', 'C → F → B♭… (kwarta w górę, jak w jazzie)'], ['up', 'pół tonu w górę', 'C → D♭ → D → E♭… (po kolei jak na klawiaturze)']], st.walk, (v) => { st.walk = v; changed(); }),
         seg('Co okrążenie: tempo', [[0, 'stałe'], [2, '+2'], [4, '+4']], st.lapBpm, (v) => { st.lapBpm = v; changed(); }),
-        el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.band, onchange: (e) => { st.band = e.target.checked; changed(); } }), el('span', {}, 'Zespół (perkusja i bas)')),
         el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.click, onchange: (e) => { st.click = e.target.checked; changed(); } }), el('span', {}, 'Klik')),
         el('label', { class: 'field inline', title: 'Co 4 okrążenia (i przed nową tonacją) perkusja gra przejście, a nowa część zaczyna się od talerza.' }, el('input', { type: 'checkbox', checked: st.fills !== false, onchange: (e) => { st.fills = e.target.checked; changed(); } }), el('span', {}, 'Przejścia perkusji')),
         el('label', { class: 'field inline', title: 'Grasz cicho, zespół gra ciszej; grasz mocno, zespół też. Zmienia się od następnego okrążenia.' }, el('input', { type: 'checkbox', checked: st.follow !== false, onchange: (e) => { st.follow = e.target.checked; changed(); } }), el('span', {}, 'Zespół słucha twojej dynamiki'))),
       st.band ? el('p', { class: 'muted band-note' }, 'Perkusja idzie na kanale 10, bas na kanale 2, akordy zespołu na kanale 3 (jak wszystko, co Trener gra na pianinie). W Studio One każdy z nich ma swoją ścieżkę, a twoje pianino słucha tylko kanału 1. Bez ścieżek perkusji i basu wyłącz „Zespół”: wtedy bas gram na kanale 3.') : null,
       st.band ? el('div', { class: 'jc-row' }, seg('Perkusista', DRUMMERS.map(([v, t, d]) => [String(v), `${v}. ${t}`, d]), String(st.drummer), (v) => { st.drummer = Number(v); changed(); }),
         el('p', { class: 'muted jc-note' }, DRUMMERS.find(([v]) => v === st.drummer)[2])) : null,
-      keysRow(seg, changed),
-      custom ? customBuilder() : null);
+      keysRow(seg, changed));
   }
 
   function customBuilder() {
@@ -324,8 +332,8 @@ export function mount(stage, ctx) {
     const p = prog();
     fill(below,
       el('div', { class: 'jam-why' },
-        el('details', { class: 'why', open: true }, el('summary', {}, `Dlaczego ${g.name} tak brzmi?`), el('p', {}, g.why)),
-        el('details', { class: 'why', open: true }, el('summary', {}, `${p.name}: dlaczego te akordy?`), el('p', {}, p.why)),
+        el('details', { class: 'why' }, el('summary', {}, `Dlaczego ${g.name} tak brzmi?`), el('p', {}, g.why)),
+        el('details', { class: 'why' }, el('summary', {}, `${p.name}: dlaczego te akordy?`), el('p', {}, p.why)),
         el('details', { class: 'why' }, el('summary', {}, 'Co ćwiczysz w tej roli?'), el('p', {}, ROLES[st.role].help))),
       st.saved.length ? el('div', { class: 'saved' }, el('span', { class: 'doors-label' }, 'Moje jamy'),
         st.saved.map((s, i) => el('span', { class: 'saved-item' },
@@ -422,8 +430,8 @@ export function mount(stage, ctx) {
   /** Light update while playing: the summary line and the key list, without rebuilding the controls. */
   function syncKeyUI() {
     const g = GROOVE[st.groove];
-    fill(setSummary, el('b', {}, 'Ustawienia'), el('span', {}, `${g.name} · ${prog().name} · ${keyName(key, true)} · ${st.tempo} BPM · ${ROLES[st.role].name}`));
-    const sel = controls.querySelector('select.jam-key');
+    fill(setSummary, el('b', {}, 'Więcej ustawień'), el('span', {}, `${g.name} · ${prog().name} · ${keyName(key, true)} · ${st.tempo} BPM · ${ROLES[st.role].name} · barwa, takty, perkusista, klawisze zespołu…`));
+    const sel = quick.querySelector('select.jam-key');
     if (sel && document.activeElement !== sel) sel.value = String(ALL_KEYS.findIndex((k) => keyName(k) === keyName(key)));
   }
 

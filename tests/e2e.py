@@ -96,6 +96,21 @@ class FakeUser:
                 self.hit(note, vel, 0.6 if self.mode == "chord" else 0.2)
 
 
+def pick_style(pg, name):
+    """Jam: choose a style in the play bar's list by the start of its name ("Pop", "Half-time shuffle")."""
+    pg.evaluate("""(n) => { const s = document.querySelector('select.jam-style');
+      const o = [...s.options].find((x) => x.textContent.startsWith(n));
+      if (!o) throw new Error('no style ' + n);
+      s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); }""", name)
+    pg.wait_for_timeout(150)
+
+
+def open_jam_settings(pg):
+    """Jam: unfold "Więcej ustawień" (barwa, takty, co okrążenie, perkusista, klawisze zespołu)."""
+    pg.evaluate("(() => { const d = document.querySelector('details.jam-set'); if (d && !d.open) d.open = true; })()")
+    pg.wait_for_timeout(100)
+
+
 def main():
     if SCRATCH.exists():
         shutil.rmtree(SCRATCH)
@@ -207,7 +222,7 @@ def main():
                 page.click("nav >> text=Jam")
                 page.wait_for_timeout(400)
                 page.screenshot(path=str(shots / "08-jam-idle.png"))
-                page.get_by_role("radio", name="Bossa nova").click()
+                pick_style(page, "Bossa nova")
                 before = len(user.trainer)
                 page.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()
                 page.wait_for_timeout(3500)

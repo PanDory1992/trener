@@ -12,7 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from e2e import TRENER, FakeUser, UdpBus  # noqa: E402
+from e2e import TRENER, FakeUser, UdpBus, pick_style, open_jam_settings  # noqa: E402
 from e2e_phone import fonts  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -112,6 +112,7 @@ def main():
             # 3. Jam: walk right, pick a key by hand mid-run → kept on the next lap
             pg.click("nav >> text=Jam")
             pg.wait_for_timeout(400)
+            open_jam_settings(pg)
             pg.get_by_role("radio", name="krok w prawo").click()
             pg.get_by_role("radio", name="stałe").click()
             start = pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True)

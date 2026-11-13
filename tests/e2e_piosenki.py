@@ -14,7 +14,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from e2e import TRENER, FakeUser, UdpBus  # noqa: E402
+from e2e import TRENER, FakeUser, UdpBus, pick_style, open_jam_settings  # noqa: E402
 from e2e_phone import fonts  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 

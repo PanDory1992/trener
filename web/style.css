@@ -347,6 +347,22 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .nav-item.nav-main { font: 700 18px/1.2 var(--display); padding: 12px 10px; color: var(--ink); }
 .nav-item.nav-main .swatch { width: 16px; height: 16px; border-radius: 50%; }
 .nav-group { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); padding: 16px 10px 4px; }
+.dock { min-width: 0; }
+.dockbar { min-width: 0; max-width: 100%; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 2px 0 10px; margin-bottom: 10px; border-bottom: 1px solid #2a2547; }
+.dockbar[hidden] { display: none; }
+.dockbar > .play-row, .dockbar > .actions { margin: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.dock:has(.dockbar .loop-btn) .loop-dock { display: none; }
+.dockbar { font-size: 15px; }
+.dockbar .tempo-field input { width: 110px; }
+.dockbar .seg-ctl button { padding: 6px 12px; }
+.dockbar .tempo-field { display: inline-flex; align-items: center; gap: 8px; }
+.dockbar select { max-width: 13rem; }
+.dockbar .btn { padding: 8px 16px; }
+.dockbar .tempo-field { white-space: nowrap; }
+.jam-dock-dyn { display: contents; }
+.jam-quick { margin: 4px 0 10px; align-items: flex-end; }
+.jam-set { margin-bottom: 12px; }
+.dockbar .btn.primary.big { padding: 10px 26px; font-size: 18px; }
 .dock-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 10px; }
 .dock-top .pilot { margin-bottom: 0; }
 .whatplay { display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: baseline; min-width: 300px; max-width: 460px; background: #1e1a36; border: 1px solid #2f2950; border-radius: 14px; padding: 6px 14px 7px; transition: opacity 0.4s; }
@@ -583,6 +599,13 @@ body.compact .stage { padding: 8px 14px 10px; }
 body.compact .stage > * { max-width: none; }
 body.compact .dock { padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); }
 body.compact .dock-top { display: none; }
+body.compact .dockbar { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: 2px 2px 6px; margin-bottom: 4px; -webkit-overflow-scrolling: touch; }
+body.compact .dockbar > .play-row, body.compact .dockbar > .actions { flex-wrap: nowrap; gap: 8px; }
+body.compact .dockbar .play-row > *, body.compact .dockbar .actions > * { flex: 0 0 auto; }
+body.compact .dockbar .tempo-field input { width: 100px; }
+body.compact .jam-quick { flex-wrap: wrap; }
+body.compact .jam-quick > * { min-width: 0; max-width: 100%; }
+body.compact .jam-quick .seg-ctl { overflow-x: auto; max-width: calc(100vw - 32px); }
 body.compact .keyboard, body.compact .keyboard.zoom { height: 104px; }
 body.compact .keyboard.zoom .key-mark { bottom: 16px; min-width: 22px; }
 body.compact .keyboard.zoom .key-mark b { font-size: 12px; line-height: 18px; }
@@ -747,6 +770,12 @@ body.compact .fing-hint, body.compact .walk-label { display: none; }
 .song-pick { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 2px; font: inherit; }
 .song-pick b { font-weight: 700; }
 .song-pick span { font-size: 12.5px; color: var(--ink-3); line-height: 1.35; }
+.song-pick:not(.on) span { display: none; }   /* only the chosen song shows its note: a shorter list */
+.song-pick { padding: 7px 12px; }
+.song-more { margin: 4px 0 6px; }
+.song-more > summary { cursor: pointer; color: var(--ink-2); font-size: 14px; padding: 4px 0; }
+.song-more > summary .muted { margin-left: 6px; font-size: 13px; }
+.who-seg button { white-space: nowrap; }
 .song-pick.on { border-color: var(--c-song); background: color-mix(in srgb, var(--c-song) 14%, var(--panel)); }
 .song-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .song-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }

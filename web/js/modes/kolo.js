@@ -439,7 +439,9 @@ export function mount(stage, ctx) {
     const show = el('button', { class: 'btn', onclick: () => { if (guide.running && guide.way === 'show') stopAll(); else guide.show(st.tempo); } }, 'Pokaż');
     const play = el('button', { class: 'btn primary', onclick: () => { if (guide.running && guide.way !== 'show') stopAll(); else guide.start(st.way, { tempo: st.tempo }); } }, 'Graj ze mną');
     runBtns = { show, play };
-    return el('div', { class: 'play-row' }, show, play, loopButton(), ways, tempo);
+    // the play controls live in the bar above the keyboard (always visible); nothing stays in the card
+    ctx.dock(el('div', { class: 'play-row' }, show, play, loopButton(), ways, tempo));
+    return null;
   }
 
   function why(text, extra = null) {

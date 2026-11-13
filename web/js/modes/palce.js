@@ -278,7 +278,7 @@ export function mount(stage, ctx) {
       ...options(),
       list.length ? null : el('p', { class: 'warn' }, 'Dla tej tonacji nie mam szkolnego palcowania. Wybierz inną.'),
       reviewBox, strip, progBox,
-      el('div', { class: 'play-row' }, show, play, loopButton(), ways, tempo),
+      ctx.dock(el('div', { class: 'play-row' }, show, play, loopButton(), ways, tempo)),
       line, statsBox,
       el('details', { class: 'why', open: st.howOpen !== false, ontoggle: (e) => { st.howOpen = e.target.open; store.save(); } },
         el('summary', {}, 'Jak ćwiczyć'), el('p', {}, HOW[st.ex])));

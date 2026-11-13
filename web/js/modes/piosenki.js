@@ -46,6 +46,7 @@ export function mount(stage, ctx) {
   st.meta = st.meta || {};
   st.autoLights = st.autoLights !== false;
   st.bandMode = BAND_MODES.some(([v]) => v === st.bandMode) ? st.bandMode : 'rytm';
+  st.who = st.who === 'sam' || BAND_MODES.some(([v]) => v === st.who) ? st.who : 'sam';   // who plays: you alone or with the band
   st.bandStyle = GROOVE[st.bandStyle] ? st.bandStyle : 'pop';
   if (!Array.isArray(store.data.songs)) store.data.songs = [];
   M.bind(store.data);
@@ -366,8 +367,8 @@ export function mount(stage, ctx) {
   function refreshBandButtons() {
     if (!bandBtns) return;
     const set = (b, on, label) => { b.textContent = on ? '■ Stop' : label; b.classList.toggle('stop', on); };
-    set(bandBtns.part, !!band && !band.whole, '▶ Ta część z zespołem');
-    set(bandBtns.whole, !!band && band.whole, '▶ Cała piosenka z zespołem');
+    set(bandBtns.part, !!band && !band.whole, '▶ Ta część');
+    set(bandBtns.whole, !!band && band.whole, '▶ Cała piosenka');
   }
   function stopBand(silence = true) {
     if (!band) return;
@@ -397,7 +398,7 @@ export function mount(stage, ctx) {
     let barOffset = 0;
     let lap = 1;
     const playPass = async (at) => {
-      const pass = songBand({ key: a.key, steps, groove, tempo, mode: st.bandMode, drummer: 3, barOffset, lead: at == null });
+      const pass = songBand({ key: a.key, steps, groove, tempo, mode: st.who === 'sam' ? st.bandMode : st.who, drummer: 3, barOffset, lead: at == null });
       barOffset += pass.bars;
       const parts = chunkEvents(pass.events);
       let t0;
@@ -434,25 +435,28 @@ export function mount(stage, ctx) {
     band.raf = requestAnimationFrame(tick);
     await playPass(null);
   }
-  function bandRow(song, secIdx) {
-    const part = el('button', { class: 'btn primary', onclick: () => { if (band && !band.whole) stopBand(); else startBand(false); } }, '');
-    const whole = el('button', { class: 'btn', onclick: () => { if (band && band.whole) stopBand(); else startBand(true); } }, '');
+  const WHO = [['sam', 'Sam', 'Bez zespołu: świecę klawisze i czekam albo prowadzę w tempie.'], ...BAND_MODES];
+  /** The bar above the keyboard: who plays, then the buttons for that (always in the same place). */
+  function dockRow(song, guideCtl) {
+    const who = el('div', { class: 'seg-ctl small who-seg', role: 'radiogroup', 'aria-label': 'Kto gra' },
+      WHO.map(([v, t, help]) => el('button', { class: st.who === v ? 'on' : '', role: 'radio', 'aria-checked': String(st.who === v), title: help,
+        onclick: () => { if (st.who === v) return; stopBand(); guide.stop(); bus.stop(); st.who = v; if (v !== 'sam') st.bandMode = v; store.save(); renderCard(); } }, t)));
+    if (st.who === 'sam') {
+      bandBtns = null;
+      const { show, play, ways, tempo } = guideCtl;
+      runBtns = { show, play };
+      return el('div', { class: 'play-row' }, who, show, play, loopButton(), ways, tempo);
+    }
+    runBtns = null;
+    const part = el('button', { class: 'btn primary', title: 'Zespół gra zaznaczoną część piosenki', onclick: () => { if (band && !band.whole) stopBand(); else startBand(false); } }, '');
+    const whole = el('button', { class: 'btn', title: 'Zespół gra całą piosenkę od początku', onclick: () => { if (band && band.whole) stopBand(); else startBand(true); } }, '');
     bandBtns = { part, whole };
     refreshBandButtons();
-    const mode = BAND_MODES.find(([v]) => v === st.bandMode);
     const style = bandStyleOf(song.id);
-    return el('div', { class: 'band-row' },
-      el('div', { class: 'chips-row' },
-        el('span', { class: 'muted' }, 'Zespół gra ze mną:'),
-        el('div', { class: 'seg-ctl small', role: 'radiogroup', 'aria-label': 'Kto gra' },
-          BAND_MODES.map(([v, t, help]) => el('button', { class: st.bandMode === v ? 'on' : '', role: 'radio', 'aria-checked': String(st.bandMode === v), title: help, onclick: () => { st.bandMode = v; store.save(); renderCard(); } }, t))),
-        el('label', { class: 'field inline' }, el('span', {}, 'Styl'),
-          el('select', { class: 'band-style', 'aria-label': 'Styl zespołu', onchange: (e) => { meta(song.id).style = e.target.value; st.bandStyle = e.target.value; store.save(); renderCard(); } },
-            GROOVE_GROUPS.map(([n, ids]) => el('optgroup', { label: n }, ids.filter((gid) => GROOVE[gid]).map((gid) => el('option', { value: gid, selected: gid === style }, `${GROOVE[gid].name} · ${GROOVE[gid].meter}`)))))),
-        part, whole),
-      el('p', { class: 'muted band-help' }, `${mode[2]} Tempo bierzemy z suwaka obok. Z włączoną „Pętlą” gramy w kółko. „Ta część” to ${partName(song, secIdx)}.`));
+    const styleSel = el('select', { class: 'band-style', 'aria-label': 'Styl zespołu', title: 'Styl zespołu (zapamiętany dla tej piosenki)', onchange: (e) => { meta(song.id).style = e.target.value; st.bandStyle = e.target.value; store.save(); renderCard(); } },
+      GROOVE_GROUPS.map(([n, ids]) => el('optgroup', { label: n }, ids.filter((gid) => GROOVE[gid]).map((gid) => el('option', { value: gid, selected: gid === style }, `${GROOVE[gid].name} · ${GROOVE[gid].meter}`)))));
+    return el('div', { class: 'play-row' }, who, styleSel, part, whole, loopButton(), guideCtl.tempo);
   }
-  function partName(song, secIdx) { const c = parseChart(song.text); return (c.sections[secIdx] || {}).name || '—'; }
 
   function renderCard() {
     guide.stop();
@@ -481,7 +485,6 @@ export function mount(stage, ctx) {
     const tv = tempo.querySelector('b'); tv.textContent = `${st.tempo}`;
     const show = el('button', { class: 'btn', onclick: () => { stopBand(false); if (guide.running && guide.way === 'show') { guide.stop(); bus.stop(); } else guide.show(st.tempo); } }, 'Pokaż');
     const play = el('button', { class: 'btn primary', onclick: () => { stopBand(false); if (guide.running && guide.way !== 'show') { guide.stop(); bus.stop(); } else guide.start(st.way, { tempo: st.tempo }); } }, 'Graj ze mną');
-    runBtns = { show, play };
     const shiftBtn = (d) => el('button', { class: 'btn small', onclick: () => { m.shift = Math.max(-11, Math.min(11, (m.shift || 0) + d)); store.save(); renderCard(); } }, d > 0 ? '+½' : '−½');
 
     fill(card,
@@ -502,17 +505,18 @@ export function mount(stage, ctx) {
         el('span', { class: 'muted' }, 'Ćwiczysz:'),
         chart.sections.map((s, i) => el('button', { class: `pick ${i === secIdx ? 'on' : ''}`, onclick: () => { m.section = i; store.save(); renderCard(); } }, s.name, dots(`song|${song.id}|${i}|${st.pattern}`)))),
       renderChart(a, secIdx),
+      el('details', { class: 'song-more', open: st.moreOpen === true, ontoggle: (e) => { st.moreOpen = e.target.open; store.save(); } },
+        el('summary', {}, 'Więcej: akompaniament i takty ', el('span', { class: 'muted' }, `${(PATTERNS.find((x) => x.id === st.pattern) || PATTERNS[0]).name} · ${st.bpc ? `${st.bpc} ${st.bpc === 1 ? 'takt' : 'takty'} na akord` : 'jak zapisano'}`)),
       el('div', { class: 'chips-row pat-row' },
-        el('span', { class: 'muted' }, 'Akompaniament:'),
+        el('span', { class: 'muted', title: 'Jak gram akordy w „Pokaż” i „W tempie” (bez zespołu)' }, 'Akompaniament:'),
         PATTERNS.map((p) => el('button', { class: `pick small ${p.id === st.pattern ? 'on' : ''}`, onclick: () => { st.pattern = p.id; store.save(); renderCard(); } }, p.name)),
         el('div', { class: 'seg-ctl small', role: 'radiogroup', 'aria-label': 'Takty na akord' },
-          [[0, 'jak zapisano'], [1, '1 takt'], [2, '2 takty']].map(([v, t]) => el('button', { class: st.bpc === v ? 'on' : '', role: 'radio', 'aria-checked': String(st.bpc === v), onclick: () => { st.bpc = v; store.save(); renderCard(); } }, t)))),
+          [[0, 'jak zapisano'], [1, '1 takt'], [2, '2 takty']].map(([v, t]) => el('button', { class: st.bpc === v ? 'on' : '', role: 'radio', 'aria-checked': String(st.bpc === v), onclick: () => { st.bpc = v; store.save(); renderCard(); } }, t))))),
       revBox, strip, progBox,
-      el('div', { class: 'play-row' }, show, play, loopButton(), ways, tempo),
-      bandRow(song, secIdx),
       fbBox, line,
       stepsInside(a, sec));
-    setStatus(WAYS[st.way].help);
+    ctx.dock(dockRow(song, { show, play, ways, tempo }));
+    setStatus(st.who === 'sam' ? WAYS[st.way].help : `${BAND_MODES.find(([v]) => v === st.who)[2]} Kliknij ▶ Ta część albo ▶ Cała piosenka na dole. Z „Pętlą” gramy w kółko.`);
     renderProgress();
     ctx.keyboard.mark([]);
   }

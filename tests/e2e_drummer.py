@@ -14,7 +14,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from e2e import TRENER, FakeUser, UdpBus  # noqa: E402
+from e2e import TRENER, FakeUser, UdpBus, pick_style, open_jam_settings  # noqa: E402
 from e2e_phone import fonts  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -68,11 +68,12 @@ def main():
 
             pg.click("nav >> text=Jam")
             pg.wait_for_timeout(600)
-            groups = pg.locator(".groove-group").all_inner_texts()
+            groups = pg.evaluate("[...document.querySelectorAll('select.jam-style optgroup')].map((g) => g.label)")
             ok("three style groups", len(groups) == 3, str(groups))
-            ok("33 style cards", pg.locator(".groove-grid .groove").count() >= 33, str(pg.locator(".groove-grid .groove").count()))
-            pg.locator(".groove", has_text="Half-time shuffle").click()
-            pg.wait_for_timeout(200)
+            n_styles = pg.evaluate("document.querySelectorAll('select.jam-style option').length")
+            ok("33 styles in the list", n_styles >= 33, str(n_styles))
+            pick_style(pg, "Half-time shuffle")
+            open_jam_settings(pg)
             pg.locator("label:has-text('Zespół (perkusja') input").check()
             pg.wait_for_timeout(200)
             seg = pg.locator(".jc", has_text="Perkusista")

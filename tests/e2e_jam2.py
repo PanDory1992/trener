@@ -12,7 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from e2e import TRENER, FakeUser, UdpBus  # noqa: E402
+from e2e import TRENER, FakeUser, UdpBus, pick_style, open_jam_settings  # noqa: E402
 from e2e_phone import fonts  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -114,8 +114,7 @@ def main():
 
             # --- the new grooves start and play drums --------------------------------------------------------------
             for name in ["Bałkany 9/8", "Čoček", "Slow blues 12/8", "Rock half-time"]:
-                pg.locator(".groove-grid button", has_text=name).first.click()
-                pg.wait_for_timeout(200)
+                pick_style(pg, name)
                 with lock:
                     n0 = len(played)
                 pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()

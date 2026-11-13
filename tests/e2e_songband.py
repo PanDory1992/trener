@@ -14,7 +14,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from e2e import TRENER, FakeUser, UdpBus  # noqa: E402
+from e2e import TRENER, FakeUser, UdpBus, pick_style, open_jam_settings  # noqa: E402
 from e2e_phone import fonts  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -79,10 +79,16 @@ def main():
             pg.locator(".tempo-field input").dispatch_event("input")
 
             # --- 1. drums + bass, this section ----------------------------------------------------------------------
-            row = pg.locator(".band-row")
-            ok("band row on the song card", row.count() == 1 and "Perkusja i bas" in row.inner_text() and "Cały zespół" in row.inner_text())
+            row = pg.locator("#dockbar")
+            who = row.locator(".who-seg")
+            ok("the play bar asks who plays: Sam / Perkusja i bas / Cały zespół", who.get_by_role("radio").count() == 3 and "Perkusja i bas" in who.inner_text())
+            ok("Sam: Pokaż and Graj ze mną in the bar", row.get_by_role("button", name="Graj ze mną").count() == 1 and row.get_by_role("button", name="Pokaż").count() == 1)
+            ok("the bar is not on the card any more", pg.locator("#stage .play-row").count() == 0)
+            who.get_by_role("radio", name="Perkusja i bas").click()
+            pg.wait_for_timeout(300)
+            ok("band: style list and both buttons", row.locator(".band-style").count() == 1 and row.get_by_role("button", name="▶ Cała piosenka").count() == 1)
             t0 = time.time()
-            row.get_by_role("button", name="▶ Ta część z zespołem").click()
+            row.get_by_role("button", name="▶ Ta część").click()
             pg.wait_for_timeout(3500)
             got = since(t0)
             st = {s for _, s, _ in got}
@@ -102,24 +108,26 @@ def main():
             ok("Stop: no chord lit", pg.locator(".sc-ch.band-now").count() == 0)
 
             # --- 2. the whole band, style remembered per song ---------------------------------------------------------
-            row.get_by_role("radio", name="Cały zespół").click()
+            row.locator(".who-seg").get_by_role("radio", name="Cały zespół").click()
             pg.wait_for_timeout(300)
             pg.locator(".band-style").select_option("ballada")
             pg.wait_for_timeout(1500)     # the page saves 0.8 s after a change
             meta = data()["modes"]["piosenki"]["meta"]
             ok("style saved for this song", any(isinstance(m, dict) and m.get("style") == "ballada" for m in meta.values()), str(meta)[:200])
             t2 = time.time()
-            pg.locator(".band-row").get_by_role("button", name="▶ Cała piosenka z zespołem").click()
+            row.get_by_role("button", name="▶ Cała piosenka").click()
             pg.wait_for_timeout(3500)
             st = {s for _, s, _ in since(t2)}
             ok("Cały zespół: drums, bass and keys on 3", {0x99, 0x91, 0x92} <= st and 0x90 not in st, str(sorted(hex(x) for x in st)))
             pg.screenshot(path=str(shots / "b2-calosc.png"))
-            # the guide's button stops the band
-            pg.locator(".play-row").get_by_role("button", name="Graj ze mną").click()
+            # going back to "Sam" stops the band
+            row.locator(".who-seg").get_by_role("radio", name="Sam").click()
+            pg.wait_for_timeout(500)
+            t4 = time.time()
+            pg.wait_for_timeout(1200)
+            ok("Sam stops the band", not since(t4) and "■ Stop" not in row.inner_text(), str(len(since(t4))))
+            row.locator(".who-seg").get_by_role("radio", name="Cały zespół").click()
             pg.wait_for_timeout(300)
-            ok("Graj ze mną stops the band", "Stop" not in pg.locator(".band-row").inner_text())
-            pg.locator(".play-row").get_by_role("button", name="■ Stop").click()
-            pg.wait_for_timeout(400)
 
             # --- 3. a long song goes in pieces (the server takes 4000 events per request) -------------------------------
             pg.locator(".song-add").click()
@@ -133,12 +141,12 @@ def main():
             pg.wait_for_timeout(300)
             n0 = len(posts)
             t3 = time.time()
-            pg.locator(".band-row").get_by_role("button", name="▶ Cała piosenka z zespołem").click()
+            row.get_by_role("button", name="▶ Cała piosenka").click()
             pg.wait_for_timeout(2500)
             ok("80 bars sent in more than one piece", len(posts) - n0 >= 2, f"{len(posts) - n0} requests")
             ok("and it plays", len(since(t3)) > 10, str(len(since(t3))))
             ok("song saved in the data", any(s.get("title") == "Długa próba" for s in data()["songs"]))
-            pg.locator(".band-row").get_by_role("button", name="■ Stop").click()
+            row.get_by_role("button", name="■ Stop").click()
             pg.wait_for_timeout(300)
 
             # --- 4. phone width: the row wraps, no horizontal scroll -----------------------------------------------------

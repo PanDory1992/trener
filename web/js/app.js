@@ -85,6 +85,7 @@ function layout() {
           el('span', { id: 'link', class: 'pill link' }, 'Łączę…'))),
       el('section', { id: 'stage', class: 'stage', tabindex: '-1' }),
       el('footer', { class: 'dock' },
+        el('div', { id: 'dockbar', class: 'dockbar', role: 'toolbar', 'aria-label': 'Granie', hidden: true }),
         el('div', { class: 'dock-top' },
           el('div', { class: 'pilot', 'aria-label': 'Pilot na klawiaturze' },
             PILOT_KEYS.map(([k, t], i) => el('button', { class: 'pk', onclick: () => pilot(PILOT[12 + i]) }, el('kbd', {}, k), el('span', {}, t))),
@@ -94,6 +95,15 @@ function layout() {
     el('div', { id: 'toasts', class: 'toasts', 'aria-live': 'polite' }),
     el('div', { id: 'overlay', class: 'overlay', hidden: true }));
   keyboard = new Keyboard(document.getElementById('kb'));
+}
+
+/** The play bar above the keyboard: the mode puts its play controls here (always in the same place, always visible). */
+function setDock(node) {
+  const bar = document.getElementById('dockbar');
+  if (!bar) return;
+  fill(bar, node || null);
+  bar.hidden = !node;
+  document.body.classList.toggle('has-dockbar', !!node);
 }
 
 function menu(open) {
@@ -150,6 +160,7 @@ function go(id, ctxExtra = {}) {
   }
   instance && instance.destroy();
   instance = null;
+  setDock(null);
   view = id;
   document.body.dataset.view = id;
   menu(false);
@@ -168,7 +179,7 @@ function go(id, ctxExtra = {}) {
   if (id === 'settings') return renderSettings(stage);
   if (id === 'help') return renderHelp(stage);
   const engine = ENGINES[id];
-  instance = engine.mount(stage, { keyboard, block: ctxExtra.block || null, onBlockDone: ctxExtra.onBlockDone || null, preset: ctxExtra.preset || null, go: (to, extra) => go(to, extra || {}) });
+  instance = engine.mount(stage, { keyboard, block: ctxExtra.block || null, onBlockDone: ctxExtra.onBlockDone || null, preset: ctxExtra.preset || null, dock: setDock, go: (to, extra) => go(to, extra || {}) });
   stage.focus({ preventScroll: true });
 }
 

@@ -1,6 +1,6 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.8.2** (12.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.9** (12.11.2026).
 
 **Stan: zamrożenie funkcji** (decyzja Mikiego 10.11). Nie dodajemy funkcji bez wyraźnej prośby. Dozwolone: poprawki błędów, dokumentacja, testy.
 
@@ -74,6 +74,8 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 **Rdzeń**
 - `app.js`: nawigacja, ekran główny, plan dnia, pilot (C56–C60), klawiatura na żywo, panel „Co ja gram?” (używa `chords.identify` i pedału).
+  - **Pasek grania** (`#dockbar`, od 1.9): tryb przekazuje swoje przyciski grania przez `ctx.dock(node)`; `go()` czyści pasek przy zmianie trybu. Używają go Koło i Palce (Pokaż, Graj ze mną, Pętla, sposób, Tempo), Piosenki (Kto gra: Sam / Perkusja i bas / Cały zespół i przyciski do tego) i Jam (Start, Styl `select.jam-style`, Tempo, Wyzwanie, Zapisz, Światła). Ćwiczenia (Echo i reszta) mieszczą się na ekranie i paska nie używają. Na stronie trybu nie powinno być drugiego `.tempo-field`, bo testy szukają jednego.
+  - Jam: na stronie zostaje rząd `.jam-quick` (Tonacja, Akordy `select.jam-prog`, Twoja rola, Zespół) i edytor; reszta w `details.jam-set` „Więcej ustawień” (domyślnie zwinięte, `st.setOpen`). W testach: `pick_style(pg, nazwa)` i `open_jam_settings(pg)` z `e2e.py`.
 - `bus.js`: połączenie z serwerem (SSE, `play`, `at`). **Każde granie przechodzi przez `bus.play`, a ono przez `outch.js` (`toTrainerCh`): kanał 1 → 3.** Nowy kod może pisać `0x90`; i tak nie trafi na kanał Mikiego.
 - `store.js`: dane, ustawienia, synchronizacja wielu okien.
 - `ui.js`: `el()` / `fill()`, klawiatura, wykresy, toast.
@@ -171,6 +173,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.9 | 13.11 | Pasek grania nad klawiaturą (wariant B z `claude/trener-ui-plan.md`): przyciski grania zawsze widoczne w jednym miejscu. Jam: style z listy zamiast 34 kart, rzadkie ustawienia zwinięte, „Dlaczego?” zwinięte. Piosenki: jeden wybór „Kto gra”, akompaniament podglądu zwinięty, krótsza lista piosenek. |
 | 1.8.2 | 12.11 | Piosenki: zespół gra piosenkę od razu (perkusja i bas albo cały zespół), bez przechodzenia do Jamu. Style w grupach przeniesione do `grooves.js` (`GROOVE_GROUPS`). |
 | 1.8.1 | 12.11 | Trener nie gra już na kanale 1: wszystko z pianina idzie na kanał 3 (prośba Mikiego: nuty Trenera biły się z jego grą). W Jamie zniknęło pole „Klawisze zespołu osobno”. Serwer bez zmian (`VERSION` dalej 1.8). |
 

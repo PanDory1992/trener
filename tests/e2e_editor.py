@@ -12,7 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from e2e import TRENER, FakeUser, UdpBus  # noqa: E402
+from e2e import TRENER, FakeUser, UdpBus, pick_style, open_jam_settings  # noqa: E402
 from e2e_phone import fonts  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -139,6 +139,7 @@ def main():
             # --- play it with the band: keys on channel 3, the slash bass E, arpeggio up ----------------------
             pg.locator("label:has-text('Zespół (perkusja') input").check()
             pg.wait_for_timeout(200)
+            open_jam_settings(pg)
             pg.locator(".keys-row").get_by_role("radio", name="W górę", exact=True).click()
             pg.wait_for_timeout(200)
             with lock:
@@ -157,6 +158,7 @@ def main():
             # --- live bass follows your chords (Ty: akordy) ------------------------------------------------------
             pg.locator(".jc", has_text="Twoja rola").get_by_role("radio", name="Ty: akordy").click()
             pg.wait_for_timeout(200)
+            open_jam_settings(pg)
             pg.locator("label:has-text('Bas słucha moich akordów') input").check()
             pg.wait_for_timeout(200)
             pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()

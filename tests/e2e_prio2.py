@@ -17,7 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from e2e import TRENER, FakeUser, UdpBus  # noqa: E402
+from e2e import TRENER, FakeUser, UdpBus, pick_style, open_jam_settings  # noqa: E402
 from e2e_phone import fonts  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -257,8 +257,8 @@ def main():
             pg.click("nav >> text=Jam")
             pg.wait_for_timeout(500)
             pg.get_by_role("radio", name="Ty: solo").click()
-            pg.locator(".groove-grid .groove", has=pg.locator("b", has_text="Pop")).first.click()
-            pg.locator(".jam-set select").nth(1).select_option("hymn")
+            pick_style(pg, "Pop")
+            pg.locator("select.jam-prog").select_option("hymn")
             pg.locator(".jam-chal-pick select").select_option("third")
             third = {"C": 64, "G": 71, "Am": 72, "F": 69}
             fn_board = pg.evaluate("[...document.querySelectorAll('.jb-strip .cs')].map((c) => (c.className.match(/fn-([TSDX])/) || [])[1])")
@@ -359,8 +359,8 @@ def main():
                 ph.screenshot(path=str(shots / f"p2-ph-{orient}-dice.png"))
                 ph.get_by_role("tab", name="Gama").tap()
                 ph.wait_for_timeout(300)
-                vis = ph.evaluate("(() => { const b = [...document.querySelectorAll('.play-row .btn.primary')][0]; const r = b.getBoundingClientRect(); return r.bottom <= innerHeight - document.querySelector('.dock').offsetHeight + 2 })()")
-                ok(f"phone {orient}: Gama play button on screen with the Kostka row", vis or orient == "land")
+                vis = ph.evaluate("(() => { const b = [...document.querySelectorAll('.play-row .btn.primary')][0]; const r = b.getBoundingClientRect(); return !!b.closest('#dockbar') && r.top >= 0 && r.bottom <= innerHeight && r.right <= innerWidth })()")
+                ok(f"phone {orient}: Gama play button always on screen (in the play bar)", vis)
                 for v in ["Jam", "Plan dnia", "Fiszki"]:
                     ph.locator(".menu-btn").tap()
                     ph.wait_for_timeout(300)

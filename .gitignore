@@ -2,6 +2,7 @@
 klucz-telefonu.txt
 trener-dane.json
 trener-dane.kopia-*.json
+trener-dane.przed-*.json
 trener-dane.tmp
 *.log
 _sync_*

@@ -537,10 +537,17 @@ export function mount(stage, ctx) {
       }
       guide.feed(e);
     },
+    // C56–C60 follow "Kto gra": with the band, C56 plays this part with the band (again = stop), C57 from the start
+    pilotLabels: () => (st.who === 'sam' ? ['Graj ze mną', 'Pokaż', 'Podpowiedź', 'Stop', 'Stop'] : ['Ta część z zespołem / Stop', 'Cała piosenka z zespołem', '—', 'Stop', 'Stop']),
     onPilot(act) {
-      if (act === 'start') guide.start(st.way, { tempo: st.tempo });
-      if (act === 'repeat') guide.show(st.tempo);
-      if (act === 'hint') guide.hint();
+      if (st.who !== 'sam') {
+        if (act === 'start') { if (band) stopBand(); else startBand(false); }
+        if (act === 'repeat') startBand(true);
+      } else {
+        if (act === 'start') guide.start(st.way, { tempo: st.tempo });
+        if (act === 'repeat') guide.show(st.tempo);
+        if (act === 'hint') guide.hint();
+      }
       if (act === 'pause' || act === 'end') { stopBand(false); guide.stop(); bus.stop(); }
     },
     destroy() { alive = false; stopBand(); guide.stop(); ctx.keyboard.mark([]); },

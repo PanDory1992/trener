@@ -22,7 +22,7 @@ export function mount(stage, ctx) {
 
   const head = card ? el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, card.title), el('p', { class: 'mode-sub' }, 'Fiszka: znajdź melodię.')))
     : levelHeader(id, 'Znajdź ze słuchu', 'Gram krótką melodię. Znajdź ją na klawiaturze, dźwięk po dźwięku, w dowolnej oktawie. Pomyłki są w porządku: szukanie to sedno.');
-  const line = el('div', { class: 'status-wrap' }, status('Naciśnij Start albo C56.'));
+  const line = el('div', { class: 'status-wrap' }, status('Naciśnij „Nowa melodia” albo C56.'));
   const dotsRow = el('div', { class: 'melody-dots' });
   const extra = el('div', { class: 'melody-extra' });
   const actions = el('div', { class: 'actions' },

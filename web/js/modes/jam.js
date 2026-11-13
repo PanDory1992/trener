@@ -659,6 +659,7 @@ export function mount(stage, ctx) {
       pushTrail(e); heard.push({ t: performance.now() / 1000, v: e.vel || 64 }); if (heard.length > 40) heard.shift();
       if (running) countChallenge(e);
     },
+    pilotLabels: ['Start / Stop', 'Od nowa', 'Światła wł./wył.', 'Stop', 'Koniec'],
     onPilot(a) {
       if (a === 'start') { running ? stop() : start(); }
       if (a === 'repeat') start();

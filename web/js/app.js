@@ -117,6 +117,16 @@ function pushDockTrail(note) {
 }
 onKeyChange(() => { dockTrail.length = 0; renderDockTrail(); });
 
+/** The pilot keys' tooltips say what C56–C60 do in this mode (a mode may give its own: [C56, C57, C58, C59, C60]). */
+function setPilotLabels(labels) {
+  const what = typeof labels === 'function' ? labels() : labels;
+  document.querySelectorAll('.topbar .pk').forEach((b, i) => {
+    const t = (what && what[i]) || PILOT_KEYS[i][1];
+    b.title = t; b.setAttribute('aria-label', `${PILOT_KEYS[i][0]}: ${t}`);
+    const sp = b.querySelector('span'); if (sp) sp.textContent = t;
+  });
+}
+
 function setDock(node) {
   const bar = document.getElementById('dockbar');
   if (!bar) return;
@@ -124,6 +134,7 @@ function setDock(node) {
   fill(bar, node || null);
   bar.hidden = !node;
   document.body.classList.toggle('has-dockbar', !!node);
+  if (instance) setPilotLabels(instance.pilotLabels);   // e.g. Piosenki: "Kto gra" changes what C56 does
 }
 
 function menu(open) {
@@ -200,6 +211,7 @@ function go(id, ctxExtra = {}) {
   if (id === 'help') return renderHelp(stage);
   const engine = ENGINES[id];
   instance = engine.mount(stage, { keyboard, block: ctxExtra.block || null, onBlockDone: ctxExtra.onBlockDone || null, preset: ctxExtra.preset || null, dock: setDock, go: (to, extra) => go(to, extra || {}) });
+  setPilotLabels(instance && instance.pilotLabels);
   stage.focus({ preventScroll: true });
 }
 

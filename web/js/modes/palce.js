@@ -295,6 +295,7 @@ export function mount(stage, ctx) {
       if (e.on && guide.running && guide.way !== 'show') pass.push({ note: e.note, vel: e.vel || 64, t: performance.now() / 1000 });
       guide.feed(e);
     },
+    pilotLabels: ['Graj ze mną / Stop', 'Pokaż', 'Podpowiedź', 'Stop', 'Stop'],
     onPilot(a) {
       if (a === 'start') { pass = []; guide.start(st.way, { tempo: st.tempo }); }
       if (a === 'repeat') guide.show(st.tempo);

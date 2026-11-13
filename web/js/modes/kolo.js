@@ -717,6 +717,7 @@ export function mount(stage, ctx) {
       const r = detector.push(e.note, performance.now() / 1000);
       if (r) { try { creditFreeRun(r); } catch (err) { console.error(err); } }
     },
+    pilotLabels: ['Graj ze mną / Stop', 'Pokaż', 'Podpowiedź', 'Stop', 'Stop'],
     onPilot(a) {
       if (a === 'start') guide.start(st.way, { tempo: st.tempo });
       if (a === 'repeat') guide.show(st.tempo);

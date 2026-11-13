@@ -18,7 +18,7 @@ import * as piosenki from './modes/piosenki.js';
 import * as palce from './modes/palce.js';
 import { HELP } from './help.js';
 import { getKey, onKeyChange } from './key.js';
-import { keyName } from './theory.js';
+import { keyName, nameInKey } from './theory.js';
 import { identify } from './chords.js';
 import { install as keepAwake } from './nosleep.js';
 import { setClick, clickEvents, CLICK_CH, PADS } from './click.js';
@@ -99,9 +99,28 @@ function layout() {
 }
 
 /** The play bar above the keyboard: the mode puts its play controls here (always in the same place, always visible). */
+// "Co grasz": your last notes as numbers in the shared key, under the play bar (Jam keeps its own, coloured by chord)
+const dockTrail = [];
+const dockTrailBox = el('div', { class: 'trail', 'aria-label': 'Twoje ostatnie dźwięki jako numery w tonacji' });
+const dockTrailWrap = el('div', { class: 'trail-wrap dock-trail' }, el('span', { class: 'doors-label' }, 'Co grasz:'), dockTrailBox);
+function renderDockTrail() {
+  fill(dockTrailBox, dockTrail.length
+    ? dockTrail.map((t, i) => el('span', { class: `tr ${t.kind} ${i === dockTrail.length - 1 ? 'last' : ''}`, title: t.name }, t.deg))
+    : el('span', { class: 'muted' }, 'Zagraj coś, a zobaczysz tu numery swoich dźwięków.'));
+}
+function pushDockTrail(note) {
+  if (!dockTrailWrap.isConnected) return;
+  const n = nameInKey(getKey(), note % 12);
+  dockTrail.push({ deg: n.deg, name: n.name, kind: n.diatonic ? 'sc' : 'out' });
+  if (dockTrail.length > 28) dockTrail.shift();
+  renderDockTrail();
+}
+onKeyChange(() => { dockTrail.length = 0; renderDockTrail(); });
+
 function setDock(node) {
   const bar = document.getElementById('dockbar');
   if (!bar) return;
+  if (node && !node.querySelector('.trail')) { renderDockTrail(); node = el('div', { class: 'dock-stack' }, node, dockTrailWrap); }
   fill(bar, node || null);
   bar.hidden = !node;
   document.body.classList.toggle('has-dockbar', !!node);
@@ -453,6 +472,7 @@ function onBus(e) {
       if (e.on) { held.add(e.note); sustained.delete(e.note); } else { held.delete(e.note); if (pedalDown) sustained.add(e.note); }
       updateWhat();
       if (e.on) {
+        pushDockTrail(e.note);
         keyboard.press(e.note, e.vel, 'you');
         const now = Date.now();
         const day = store.dayRec();

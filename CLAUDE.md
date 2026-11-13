@@ -181,6 +181,8 @@ Dokumenty projektu: `trener-1.1-kolo-i-jam`, `trener-1.3-prio1`, `trener-1.4-pio
 
 ## Inne części systemu (poza tym folderem)
 
+- **Repozytoria na GitHubie (13.11.2026):** router, nadzorca, szyna, krzywe velocity, źródła wtyczek Uszy i Keystation Status oraz kopia `studio-one-setup` (most MIDI) → **PanDory1992/keystation-router** (README po polsku). Most MCP do Studio One → **PanDory1992/studio-one-mcp** (fork, gałąź `miki-poprawki`, opis w `MIKI.md`). PC nie ma uprawnień do wysyłania; wysyłka idzie z chmury (paczka gita z PC → `add_repo` → push).
+
 - `CodexPedalModes/pedal_router.py` z testami `test_pedal_router.py`, `udp_bus.py` z `test_udp_bus.py`, krzywe `velocity-map*.json`.
 - **Uszy (VST3, Rust/nih-plug):**
   - źródła w `CodexPedalModes/uszy-plugin/zrodla`;

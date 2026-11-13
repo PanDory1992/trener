@@ -348,16 +348,32 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .nav-item.nav-main .swatch { width: 16px; height: 16px; border-radius: 50%; }
 .nav-group { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); padding: 16px 10px 4px; }
 .dock { min-width: 0; }
-.dockbar { min-width: 0; max-width: 100%; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 2px 0 10px; margin-bottom: 10px; border-bottom: 1px solid #2a2547; }
+.dockbar { min-width: 0; flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+/* one row above the keys: the mode's play controls, then the pilot keys (only the key caps; the name is in the tooltip), then Co ja gram */
+.has-dockbar .dock-top { align-items: center; flex-wrap: nowrap; }
+.has-dockbar .dockbar { flex: 1 1 0; }
+.topbar > .whatplay { margin-left: auto; min-width: 260px; padding: 4px 12px 5px; }
+.dockbar select { max-width: 10rem; width: auto; }
+.dockbar label.field.inline:has(select.jam-style) > span { display: none; }
+.dockbar .tempo-field input { width: 80px; }
+.dockbar .field.inline { gap: 6px; }
+.dockbar .tempo-field:has(> b) > span { display: none; }
+.dockbar .tempo-field > b::after { content: ' BPM'; font-weight: 400; color: var(--ink-3); }
+.has-dockbar .pilot { gap: 6px; flex-wrap: nowrap; }
+.has-dockbar .pk span { display: none; }
+.has-dockbar .pk { padding: 0; border: 0; background: transparent; }
 .dockbar[hidden] { display: none; }
 .dockbar > .play-row, .dockbar > .actions { margin: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.dock:has(.dockbar .loop-btn) .loop-dock { display: none; }
+.has-dockbar .loop-dock { display: none; }
 .dockbar { font-size: 15px; }
-.dockbar .tempo-field input { width: 110px; }
-.dockbar .seg-ctl button { padding: 6px 12px; }
+.dockbar .tempo-field input { width: 90px; }
+.dockbar .seg-ctl button { padding: 5px 9px; }
+.dockbar, .dockbar > .play-row, .dockbar > .actions { gap: 8px; }
+.has-dockbar .pk kbd { padding: 4px 4px; font-size: 11px; }
+.has-dockbar .pilot { gap: 4px; }
 .dockbar .tempo-field { display: inline-flex; align-items: center; gap: 8px; }
 .dockbar select { max-width: 13rem; }
-.dockbar .btn { padding: 8px 16px; }
+.dockbar .btn { padding: 7px 14px; }
 .dockbar .tempo-field { white-space: nowrap; }
 .jam-dock-dyn { display: contents; }
 .jam-quick { margin: 4px 0 10px; align-items: flex-end; }
@@ -434,7 +450,7 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .band-row select { max-width: 15rem; }
 .tempo-field input { width: 150px; }
 .tempo-field b { min-width: 34px; font-variant-numeric: tabular-nums; color: var(--ink); }
-.kstatus { min-height: 34px; margin: 4px 0 8px; }
+.kstatus { min-height: 34px; margin: 4px 0 8px; font-size: 19px; }
 .ks { font: 700 22px/1.3 var(--display); color: var(--ink-2); }
 .ks.turn { color: var(--mode); }
 .ks.good { color: var(--good); }
@@ -491,16 +507,16 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .custom-seq { font: 700 18px var(--display); margin-right: 8px; }
 .jam-board { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 20px 24px; }
 .jb-now { display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; }
-.jb-num { font: 800 92px/0.9 var(--display); color: var(--mode); min-width: 1.2em; letter-spacing: -0.03em; }
-.jb-name { font: 800 44px/1 var(--display); }
+.jb-num { font: 800 124px/0.9 var(--display); color: var(--mode); min-width: 1.2em; letter-spacing: -0.03em; }
+.jb-name { font: 800 64px/1 var(--display); }
 .jb-tones { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-.jb-tones i { font-size: 18px; padding: 4px 10px; display: flex; gap: 6px; align-items: baseline; }
+.jb-tones i { font-size: 22px; padding: 4px 10px; display: flex; gap: 6px; align-items: baseline; }
 .jb-tones i span { font-size: 12px; opacity: 0.75; }
 .jb-next { text-align: right; color: var(--ink-3); }
 .jb-next span { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; }
-.jb-next b { font: 700 24px var(--display); color: var(--ink-2); white-space: pre; }
+.jb-next b { font: 700 36px var(--display); color: var(--ink-2); white-space: pre; }
 .jb-beats { display: flex; gap: 8px; margin: 16px 0 12px; }
-.jb-beats i { width: 14px; height: 14px; border-radius: 50%; background: #3b3462; }
+.jb-beats i { width: 20px; height: 20px; border-radius: 50%; background: #3b3462; }
 .jb-beats i.on { background: var(--mode); box-shadow: 0 0 0 4px color-mix(in srgb, var(--mode) 25%, transparent); }
 .jb-strip .cs b { color: inherit; }
 .jam-actions { margin: 16px 0 6px; }
@@ -598,8 +614,9 @@ body.compact .whatmini span { font: 700 13px/1 var(--display); color: #15122a; b
 body.compact .stage { padding: 8px 14px 10px; }
 body.compact .stage > * { max-width: none; }
 body.compact .dock { padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); }
-body.compact .dock-top { display: none; }
-body.compact .dockbar { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: 2px 2px 6px; margin-bottom: 4px; -webkit-overflow-scrolling: touch; }
+body.compact .dock-top > :not(.dockbar) { display: none; }
+body.compact .dock-top { margin-bottom: 4px; }
+body.compact .dockbar { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: 2px 2px 6px; max-width: 100%; -webkit-overflow-scrolling: touch; }
 body.compact .dockbar > .play-row, body.compact .dockbar > .actions { flex-wrap: nowrap; gap: 8px; }
 body.compact .dockbar .play-row > *, body.compact .dockbar .actions > * { flex: 0 0 auto; }
 body.compact .dockbar .tempo-field input { width: 100px; }
@@ -795,6 +812,7 @@ body.compact .fing-hint, body.compact .walk-label { display: none; }
 .sc-line { padding: 2px 0; }
 .sc-chords { position: relative; height: 1.5em; }
 .show-both .sc-chords { height: 2.5em; }
+.sc-ch.now { transform: scale(1.4); transform-origin: left bottom; z-index: 1; }
 .sc-ch { position: absolute; top: 0; display: inline-flex; flex-direction: column; line-height: 1.15; cursor: pointer; border-radius: 6px; padding: 0 3px; margin-left: -3px; }
 .sc-ch b { color: var(--ink); font-weight: 800; }
 .sc-ch i { font-style: normal; font-size: 12px; color: var(--c-song); }

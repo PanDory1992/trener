@@ -396,7 +396,7 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 /* --- key wheel ------------------------------------------------------------------------------------------------ */
 .kolo { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 30px; align-items: start; }
 .kolo-left { position: sticky; top: 0; }
-.wheel { width: 100%; max-width: 380px; display: block; }
+.wheel { width: 100%; max-width: 440px; display: block; }
 .sector path { fill: #221e3b; stroke: var(--night); stroke-width: 2; transition: fill 0.2s; cursor: pointer; }
 .sector.inner path { fill: #1c1932; }
 .sector:hover path { fill: #2f2952; }
@@ -409,7 +409,7 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .inner .sec-name { font-size: 14px; }
 .sector.fam .sec-name { fill: var(--ink); }
 .sector.sel .sec-name { fill: #15122a; }
-.sec-num { fill: var(--c-kolo); font: 800 12px var(--text); text-anchor: middle; pointer-events: none; }
+.sec-num { fill: var(--c-kolo); font: 800 13px var(--text); text-anchor: middle; pointer-events: none; }
 .sector.sel .sec-num { fill: #15122a; }
 .wheel-center { fill: #15122a; stroke: #2f2950; }
 .wc-name { fill: var(--ink); font: 800 19px var(--display); text-anchor: middle; }

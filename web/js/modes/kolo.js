@@ -336,9 +336,12 @@ export function mount(stage, ctx) {
         const fl = famLabel(ring, i);
         const g = svg('g', { class: `sector ${ring === 'o' ? 'outer' : 'inner'} ${fl ? 'fam' : ''} ${selected ? 'sel' : ''}`, tabindex: '0', role: 'button', 'aria-label': keyName(k, true), 'data-key': keyName(k) });
         g.append(svg('path', { d: ring === 'o' ? sectorPath(i, 128, 200) : sectorPath(i, 76, 128) }));
-        const lp = labelPos(i, ring === 'o' ? 170 : 104);
-        g.append(svg('text', { x: lp.x, y: lp.y + (ring === 'o' ? 7 : 5), class: 'sec-name' }, keyName(k)));
-        if (fl) { const np = labelPos(i, ring === 'o' ? 143 : 85); g.append(svg('text', { x: np.x, y: np.y + 4, class: 'sec-num' }, fl)); }
+        // the name, and under it (not beside it) the number in the chosen key, so they never run into each other
+        const lp = labelPos(i, ring === 'o' ? 164 : 102);
+        if (fl) {
+          g.append(svg('text', { x: lp.x, y: lp.y + (ring === 'o' ? -1 : -2), class: 'sec-name' }, keyName(k)));
+          g.append(svg('text', { x: lp.x, y: lp.y + (ring === 'o' ? 16 : 13), class: 'sec-num' }, fl));
+        } else g.append(svg('text', { x: lp.x, y: lp.y + (ring === 'o' ? 7 : 5), class: 'sec-name' }, keyName(k)));
         // progress map: a line at the edge of keys you have started, bright when you know things there
         const sum = M.keySummary(`${kid(k)}|`);
         const lvl = sum.known >= 3 ? 3 : sum.known >= 1 ? 2 : sum.started ? 1 : 0;

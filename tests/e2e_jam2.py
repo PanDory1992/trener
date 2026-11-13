@@ -67,7 +67,7 @@ def main():
             pg.locator(".song-pick", has_text="Hit the Road").click()
             pg.locator(".song-steps .door", has_text="Jamie").click()
             pg.wait_for_timeout(600)
-            pg.locator("label:has-text('Zespół (perkusja') input").check()
+            pg.locator("label:has-text('Perkusja i bas') input").check()
             pg.wait_for_timeout(200)
             pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()
             # two chords per bar: the board shows Am then G within one bar (96 BPM → bar 2.5 s)

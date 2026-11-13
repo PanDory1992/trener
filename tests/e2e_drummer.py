@@ -74,7 +74,7 @@ def main():
             ok("33 styles in the list", n_styles >= 33, str(n_styles))
             pick_style(pg, "Half-time shuffle")
             open_jam_settings(pg)
-            pg.locator("label:has-text('Zespół (perkusja') input").check()
+            pg.locator("label:has-text('Perkusja i bas') input").check()
             pg.wait_for_timeout(200)
             seg = pg.locator(".jc", has_text="Perkusista")
             ok("drummer control shows 4 levels", seg.get_by_role("radio").count() == 4)

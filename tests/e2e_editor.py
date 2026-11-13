@@ -137,7 +137,7 @@ def main():
             ok("board strip shows the section and the rest", "pauza" in strip and ("ZWROTKA" in strip.upper()), strip)
 
             # --- play it with the band: keys on channel 3, the slash bass E, arpeggio up ----------------------
-            pg.locator("label:has-text('Zespół (perkusja') input").check()
+            pg.locator("label:has-text('Perkusja i bas') input").check()
             pg.wait_for_timeout(200)
             open_jam_settings(pg)
             pg.locator(".keys-row").get_by_role("radio", name="W górę", exact=True).click()

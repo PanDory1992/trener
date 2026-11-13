@@ -291,7 +291,7 @@ def main():
             pg.locator(".jam-actions").get_by_role("button", name="■ Stop", exact=True).click()
             pg.wait_for_timeout(500)
             # Pytanie–odpowiedź with the band (bass on its own channel): the piano is silent in your bars
-            pg.locator("label:has-text('Zespół (perkusja') input").check()
+            pg.locator("label:has-text('Perkusja i bas') input").check()
             pg.locator(".jam-chal-pick select").select_option("qa")
             pg.locator(".jam-actions").get_by_role("button", name="Start", exact=True).click()
             turns = []

@@ -447,7 +447,7 @@ export function mount(stage, ctx) {
     if (!o.prog.steps.some((x) => { const n = normStep(x); return n && n.k === 'chord' && !n.skip; })) { toast('Najpierw ułóż własną progresję.'); return; }
     running = true;
     chalReset(); renderChal();
-    startBtn.textContent = 'Stop';
+    startBtn.textContent = '■ Stop';
     startBtn.classList.add('running');
     const ci = countIn(o.groove, o.tempo, o.band);
     let t0;

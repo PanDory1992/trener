@@ -79,6 +79,10 @@ function layout() {
         el('div', { id: 'viewtitle', class: 'viewtitle' }),
         el('div', { id: 'whatmini', class: 'whatmini', 'aria-hidden': 'true' }),
         loopButton('mini'),
+        // the pilot keys on the Keystation (C56–C60), as a reminder; clickable too
+        el('div', { class: 'pilot', 'aria-label': 'Pilot na klawiaturze' },
+          PILOT_KEYS.map(([k, t], i) => el('button', { class: 'pk', title: t, 'aria-label': `${k}: ${t}`, onclick: () => pilot(PILOT[12 + i]) }, el('kbd', {}, k), el('span', {}, t))),
+          loopButton('dock')),
         el('div', { class: 'top-right' },
           bus.remote ? null : el('button', { class: 'pill phone-btn', onclick: () => showPhone(), title: 'Otwórz Trenera na iPhonie' }, 'Na telefonie'),
           el('span', { id: 'today-min', class: 'pill' }, ''),
@@ -87,9 +91,6 @@ function layout() {
       el('footer', { class: 'dock' },
         el('div', { class: 'dock-top' },
           el('div', { id: 'dockbar', class: 'dockbar', role: 'toolbar', 'aria-label': 'Granie', hidden: true }),
-          el('div', { class: 'pilot', 'aria-label': 'Pilot na klawiaturze' },
-            PILOT_KEYS.map(([k, t], i) => el('button', { class: 'pk', title: t, 'aria-label': `${k}: ${t}`, onclick: () => pilot(PILOT[12 + i]) }, el('kbd', {}, k), el('span', {}, t))),
-            loopButton('dock')),
           el('div', { id: 'whatplay', class: 'whatplay', 'aria-live': 'polite', title: 'Co ja gram? Rozpoznaję akord, który trzymasz, w wybranej tonacji.' })),
         el('div', { id: 'kb', class: 'keyboard', 'aria-hidden': 'true' }))),
     el('div', { id: 'toasts', class: 'toasts', 'aria-live': 'polite' }),
@@ -104,12 +105,6 @@ function setDock(node) {
   fill(bar, node || null);
   bar.hidden = !node;
   document.body.classList.toggle('has-dockbar', !!node);
-  // with a play bar, "Co ja gram?" moves up to the top bar so the bar and the pilot keys share one row above the keys
-  const what = document.getElementById('whatplay');
-  const home = node ? document.querySelector('.topbar .top-right') : document.querySelector('.dock-top');
-  if (what && home && what.parentNode !== home) {
-    if (node) home.parentNode.insertBefore(what, home); else home.appendChild(what);
-  }
 }
 
 function menu(open) {

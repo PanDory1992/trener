@@ -106,13 +106,16 @@ export function mount(stage, ctx) {
       el('h1', {}, 'Jam'),
       el('p', { class: 'mode-sub' }, 'Wybierz styl i akordy. Ja gram zespół, ty swoją partię. Nikt cię nie ocenia, po prostu grasz.'))),
     quick, customBox, controlsWrap, board, chalBox,
-    el('div', { class: 'trail-wrap' }, el('span', { class: 'doors-label' }, 'Co grasz (numery w tonacji)'), trailBox),
+
     below);
 
   // the play bar above the keyboard: Start, style, tempo, challenge, save, lights
-  ctx.dock(el('div', { class: 'actions jam-actions' }, startBtn, dockDyn, chalPick,
-    el('button', { class: 'btn', onclick: () => saveJam() }, 'Zapisz ten jam'),
-    el('label', { class: 'field inline' }, lightsBox, el('span', {}, 'Światła'))));
+  ctx.dock(el('div', { class: 'dock-stack' },
+    el('div', { class: 'actions jam-actions' }, startBtn, dockDyn, chalPick,
+      el('button', { class: 'btn', onclick: () => saveJam() }, 'Zapisz ten jam'),
+      el('label', { class: 'field inline' }, lightsBox, el('span', {}, 'Światła'))),
+    // what you played, as numbers in the key: right under the buttons, close to the keys
+    el('div', { class: 'trail-wrap' }, el('span', { class: 'doors-label' }, 'Co grasz:'), trailBox)));
 
   function prog() {
     if (st.prog[key.mode] === 'custom') {

@@ -350,18 +350,23 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .dock { min-width: 0; }
 .dockbar { min-width: 0; flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 /* one row above the keys: the mode's play controls, then the pilot keys (only the key caps; the name is in the tooltip), then Co ja gram */
-.has-dockbar .dock-top { align-items: center; flex-wrap: nowrap; }
+.dock-top { align-items: stretch; flex-wrap: nowrap; }
 .has-dockbar .dockbar { flex: 1 1 0; }
-.topbar > .whatplay { margin-left: auto; min-width: 260px; padding: 4px 12px 5px; }
+/* Co ja gram? keeps one size whatever it says, so nothing jumps while you play */
+.dock-top > .whatplay { margin-left: auto; flex: 0 0 380px; width: 380px; max-width: none; height: 128px; overflow: hidden; align-content: start; }
+.dock-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dockbar .trail-wrap { margin: 0; flex-direction: row; align-items: center; gap: 10px; min-width: 0; }
+.dockbar .trail { flex-wrap: nowrap; overflow: hidden; min-height: 30px; }
+.dockbar .trail-wrap .doors-label { flex: 0 0 auto; }
 .dockbar select { max-width: 10rem; width: auto; }
 .dockbar label.field.inline:has(select.jam-style) > span { display: none; }
 .dockbar .tempo-field input { width: 80px; }
 .dockbar .field.inline { gap: 6px; }
 .dockbar .tempo-field:has(> b) > span { display: none; }
 .dockbar .tempo-field > b::after { content: ' BPM'; font-weight: 400; color: var(--ink-3); }
-.has-dockbar .pilot { gap: 6px; flex-wrap: nowrap; }
-.has-dockbar .pk span { display: none; }
-.has-dockbar .pk { padding: 0; border: 0; background: transparent; }
+.topbar .pilot { gap: 4px; flex-wrap: nowrap; margin: 0 0 0 auto; }
+.topbar .pk span { display: none; }
+.topbar .pk { padding: 0; border: 0; background: transparent; }
 .dockbar[hidden] { display: none; }
 .dockbar > .play-row, .dockbar > .actions { margin: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .has-dockbar .loop-dock { display: none; }
@@ -369,8 +374,8 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 .dockbar .tempo-field input { width: 90px; }
 .dockbar .seg-ctl button { padding: 5px 9px; }
 .dockbar, .dockbar > .play-row, .dockbar > .actions { gap: 8px; }
-.has-dockbar .pk kbd { padding: 4px 4px; font-size: 11px; }
-.has-dockbar .pilot { gap: 4px; }
+.topbar .pk kbd { padding: 4px 5px; font-size: 12px; }
+
 .dockbar .tempo-field { display: inline-flex; align-items: center; gap: 8px; }
 .dockbar select { max-width: 13rem; }
 .dockbar .btn { padding: 7px 14px; }
@@ -615,6 +620,8 @@ body.compact .stage { padding: 8px 14px 10px; }
 body.compact .stage > * { max-width: none; }
 body.compact .dock { padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); }
 body.compact .dock-top > :not(.dockbar) { display: none; }
+body.compact .topbar .pilot { display: none; }
+body.compact .dockbar .trail-wrap { display: none; }
 body.compact .dock-top { margin-bottom: 4px; }
 body.compact .dockbar { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: 2px 2px 6px; max-width: 100%; -webkit-overflow-scrolling: touch; }
 body.compact .dockbar > .play-row, body.compact .dockbar > .actions { flex-wrap: nowrap; gap: 8px; }

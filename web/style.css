@@ -1071,3 +1071,7 @@ details.pe-grp > summary { cursor: pointer; }
 .dl-ppp { background: #3d3a6b; color: var(--ink-2) !important; } .dl-pp { background: #4f5aa0; } .dl-p { background: #5f7fd0; }
 .dl-mp { background: #79a8e8; } .dl-mf { background: #a6cdf0; } .dl-f { background: #f0c98a; } .dl-ff { background: #f09a6e; } .dl-fff { background: #e8665a; }
 .week-task { margin-top: 6px; }
+/* 13.11 fix: on the phone the play bar collapsed to 8 px (column dock-top + flex-basis 0), so Jam had no Start */
+body.compact .has-dockbar .dockbar, body.compact .dock-top > .dockbar { flex: 0 0 auto; }
+body.compact .dock-stack { flex: 0 0 auto; }
+body.compact .dock-stack > .play-row, body.compact .dock-stack > .actions { flex-wrap: nowrap; gap: 8px; margin: 0; }

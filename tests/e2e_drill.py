@@ -63,7 +63,7 @@ def main():
     # an old record (one level) for echo: the axes must start from it
     # ... and a rewanż from an earlier day (1.11)
     debt = '{"item":{"kind":"motif","level":2,"scale":"major","rootPc":0,"tempo":74,"notes":[{"p":60,"dur":1,"v":76},{"p":62,"dur":1,"v":76},{"p":64,"dur":1,"v":76},{"p":62,"dur":1,"v":76}],"withDynamics":false,"flat":false,"focus":"all","hand":"right","tested":["melodia","rytm"]},"day":"2020-01-01","tries":0}'
-    (app_dir / "trener-dane.json").write_text('{"v":1,"settings":{},"modes":{"echo":{"level":3,"hist":[],"lastDay":null,"best":3,"debts":[' + debt + ']}},"cards":[],"days":{}}', encoding="utf-8")
+    (app_dir / "trener-dane.json").write_text('{"v":1,"settings":{},"modes":{"echo":{"level":3,"hist":[],"lastDay":null,"best":3,"debts":[' + debt + ']}},"cards":[],"days":{"' + __import__("datetime").date.today().isoformat() + '":{"series":[{"id":"akordy","n":10,"ok":8,"avg":85,"at":1}]}}}', encoding="utf-8")
     user = User()
     bus = UdpBus(on_play=user.on_play)
     user.bus = bus
@@ -170,12 +170,15 @@ def main():
             pg.wait_for_timeout(400)
             ok("chords: a real progression by default", pg.locator(".prog-about").count() == 1 and " z " in pg.inner_text(".prog-name"), pg.inner_text(".chord-board").replace("\n", " | "))
             pg.screenshot(path=str(shots / "d04-akordy-bank.png"))
-            for k in range(10):
+            # 1.13.1: one counted attempt per progression (both passes), not per chord
+            done = False
+            for k in range(30):
                 pg.get_by_role("button", name="Posłuchaj", exact=True).click()
                 pg.wait_for_timeout(3300)
-            pg.wait_for_selector(".drill-summary", timeout=8000)
-            summ = pg.inner_text(".drill-summary")
-            ok("chords: series summary after 10", "Seria:" in summ and "z 10" in summ and "Akordy" in summ, summ.replace("\n", " | "))
+                if "seria 1/10" in pg.inner_text(".drill-ladder"):
+                    done = True
+                    break
+            ok("chords: the whole progression counts once", done and k >= 5, f"chords played: {k + 1}")
             pg.screenshot(path=str(shots / "d05-akordy-summary.png"))
             ok("chords: 'Dowolny przewrót' switch", pg.locator("label.check", has_text="Dowolny przewrót").count() == 1)
             # --- Przewroty: the bottom note said plainly, and the mode plays through ------------------------

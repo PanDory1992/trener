@@ -222,3 +222,17 @@ export function speedCurve(points, width = 8) {
   }
   return { bins, border };
 }
+
+/**
+ * One counted attempt from several parts (1.13.1: the chord gym counts a whole progression, not each chord):
+ * the mean score, passed only if every part passed, and the tip of the weakest part that had something to say.
+ * parts: [{score, passed, tip}].
+ */
+export function roundResult(parts) {
+  if (!parts.length) return null;
+  const score = Math.round(parts.reduce((s, p) => s + p.score, 0) / parts.length);
+  const passed = parts.every((p) => p.passed);
+  const withTip = parts.filter((p) => p.tip && p.tip.kind);
+  const tip = withTip.length ? withTip.reduce((a, b) => (b.score < a.score ? b : a)).tip : null;
+  return { score, passed, tip };
+}

@@ -3,7 +3,7 @@ import * as bus from '../bus.js';
 import { checkChord, chordGymPlan, chordPcs, CHORDS, movement, pcName, progressionChords, PROGRESSIONS, referenceVoicing, rng, roleIn, VOICING_STYLES } from '../music.js';
 import { BANK_BY_ID, bankChords, bankStyle, FAMILIES, keyName, nextSet, PASS_SAY, secondPass, setTonic, withSevenths } from '../progbank.js';
 import { bottomWord, closestInversions, INV_NAMES, invPlan, invStage, invSymbol } from '../inversions.js';
-import { stepLevel } from '../drill.js';
+import { roundResult, stepLevel } from '../drill.js';
 import * as store from '../store.js';
 import { el, status, fill, add } from '../ui.js';
 import { addLine, createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
@@ -37,6 +37,7 @@ export function mount(stage, ctx) {
   let wrongTimer = null;
   let hintUsed = false;
   let lastWrong = '';
+  let parts = [];           // 1.13.1: the chords of this round; the level moves once per progression
 
   const drill = card ? null : createDrill(id, {
     title: 'Siłownia akordów',
@@ -99,6 +100,7 @@ export function mount(stage, ctx) {
       }
     } else chords = progressionChords(plan.prog, plan.keyPc);
     i = 0;
+    parts = [];
     renderBoard();
   }
 
@@ -187,9 +189,36 @@ export function mount(stage, ctx) {
 
   function skip() {
     fill(summaryBox);
-    i = Math.min(i + 1, chords.length - 1);
+    if (!card) parts.push({ score: 0, passed: false, tip: { kind: 'skip', text: `${chords[i].symbol} pominięty: liczy się jako 0.` } });
+    if (i >= chords.length - 1) {
+      if (!card) finishRound();
+      newRound();
+      setStatus('Nowa runda.', 'turn');
+      return;
+    }
+    i++;
     renderBoard();
     setStatus('Pominięty. Zagraj następny.', 'turn');
+  }
+
+  /** The progression is done: one counted attempt with the mean of its chords. */
+  function finishRound() {
+    const res = roundResult(parts);
+    parts = [];
+    if (!res) return null;
+    const tip = res.tip || { kind: null, text: `Cała progresja: ${res.score} punktów.` };
+    let r;
+    if (plan.inv) {
+      // the Przewroty mode keeps its own level; the series still counts it
+      const rec = store.mode(id);
+      const before = rec.invLevel || 1;
+      rec.invLevel = stepLevel(before, res.score);
+      r = drill.counted({ przewroty: res.score }, res.passed, tip);
+      r.change = { levelBefore: before, levelAfter: rec.invLevel };
+    } else r = drill.counted({ akordy: res.score }, res.passed, tip);
+    if (r.cold) addLine(line, `Zimny start dziś: ${r.score} pkt.`);
+    if (r.summary) fill(summaryBox, seriesCard(r.summary, drill.labels, () => { fill(summaryBox); }));
+    return r;
   }
 
   function evaluate() {
@@ -221,23 +250,18 @@ export function mount(stage, ctx) {
         : secs > 5 ? { kind: 'slow', text: `${c.symbol}: ${secs.toFixed(1).replace('.', ',')} s. Zanim zagrasz, nazwij w myślach tercję.` }
           : move !== null && move > 8 ? { kind: 'move', text: `Duży skok ręki (${moveWord}). Szukaj układu najbliżej poprzedniego akordu.` }
             : { kind: null, text: move === null ? `${secs.toFixed(1).replace('.', ',')} s.` : `${secs.toFixed(1).replace('.', ',')} s, ${moveWord}${move <= 4 ? ', bardzo gładko' : ''}.` };
-      let r = null;
       if (card) {
         // a card passes when every chord of the progression is right the first time
         card._fails = (card._fails || 0) + (passed ? 0 : 1);
-      } else {
-        if (plan.inv) {
-          // the Przewroty mode keeps its own level; the series still counts it
-          const rec = store.mode(id);
-          rec.invLevel = stepLevel(rec.invLevel || 1, score);
-          r = drill.counted({ przewroty: score }, passed, tip);
-        } else r = drill.counted({ akordy: score }, passed, tip);
-      }
+      } else parts.push({ score, passed, tip });
       prevVoicing = notes;
       setStatus(passed ? 'Dobrze!' : 'Jest.', 'good', tip);
-      if (r && r.cold) addLine(line, `Zimny start dziś: ${r.score} pkt.`);
       renderStats();
-      if (r && r.summary) fill(summaryBox, seriesCard(r.summary, drill.labels, () => { fill(summaryBox); }));
+      if (!card && i === chords.length - 1) {
+        const r = finishRound();
+        const f = (x) => x.toFixed(1).replace('.', ',');
+        if (r) addLine(line, `Cała progresja: ${r.score} punktów${Math.abs(r.change.levelAfter - r.change.levelBefore) >= 0.05 ? `, poziom ${f(r.change.levelBefore)} → ${f(r.change.levelAfter)}` : ''}.`);
+      }
       setTimeout(() => {
         if (!alive) return;
         i++;

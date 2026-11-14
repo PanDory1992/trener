@@ -90,3 +90,17 @@ test('ladder: now and next', () => {
   assert.deepEqual(rung(L, 2.9), { now: 'trzy dźwięki', next: 'pięć dźwięków', nextAt: 3.5 });
   assert.deepEqual(rung(L, 9), { now: 'pięć dźwięków', next: null, nextAt: null });
 });
+
+test('a round of chords counts once: mean score, passed only if all passed, the weakest tip', async () => {
+  const { roundResult } = await import('../web/js/drill.js');
+  assert.equal(roundResult([]), null);
+  const r = roundResult([
+    { score: 100, passed: true, tip: { kind: null, text: 'ok' } },
+    { score: 40, passed: false, tip: { kind: 'hint', text: 'z podpowiedzią' } },
+    { score: 70, passed: false, tip: { kind: 'slow', text: 'wolno' } },
+    { score: 90, passed: true, tip: null },
+  ]);
+  assert.deepEqual(r, { score: 75, passed: false, tip: { kind: 'hint', text: 'z podpowiedzią' } });
+  assert.equal(roundResult([{ score: 100, passed: true, tip: { kind: null } }]).tip, null);
+  assert.ok(roundResult([{ score: 90, passed: true }, { score: 85, passed: true }]).passed);
+});

@@ -172,25 +172,6 @@ export function rung(ladder, level) {
 }
 
 // --- stage 2 (1.11) ----------------------------------------------------------------------------------------------------
-/** Your own verdict vs the real one: 'good' (≥ PASS), 'mid' (50–79), 'bad'. */
-export function selfBand(score) { return score >= PASS ? 'good' : score >= 50 ? 'mid' : 'bad'; }
-const BAND = { bad: 0, mid: 1, good: 2 };
-
-/**
- * How well you hear yourself. list: [{self, actual, weak}] (weak = the axis with the lowest score).
- * Returns {n, hits, rate, over, under, weakest} — weakest: the axis you most often think went well when it did not.
- */
-export function selfStats(list) {
-  const xs = (list || []).filter((x) => x && x.self && x.actual);
-  const hits = xs.filter((x) => x.self === x.actual).length;
-  const overs = xs.filter((x) => BAND[x.self] > BAND[x.actual]);
-  const count = new Map();
-  for (const x of overs) if (x.weak) count.set(x.weak, (count.get(x.weak) || 0) + 1);
-  let weakest = null;
-  for (const [k, v] of count) if (!weakest || v > weakest.n) weakest = { axis: k, n: v };
-  return { n: xs.length, hits, rate: xs.length ? hits / xs.length : null, over: overs.length, under: xs.filter((x) => BAND[x.self] < BAND[x.actual]).length, weakest };
-}
-
 /**
  * Cold start: the first counted attempt of each day. cold: {date: score}. Returns {today, prev, days} where prev is the
  * mean of the up to 7 days before today and days the last 7 [date, score] in order.

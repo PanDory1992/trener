@@ -505,8 +505,6 @@ function renderSettings(stage) {
       clickRow(row, s),
       row('Opóźnienie odsłuchu', 'Ile milisekund mija, zanim usłyszysz dźwięk. Odejmuję je od twoich uderzeń we wszystkich ćwiczeniach z rytmem (Aksak, Nuty docelowe, Graj ze mną). „Zmierz”: zagram 10 kliknięć, stukaj razem z nimi od trzeciego.',
         el('div', { class: 'lat-set' }, latInput, el('button', { class: 'btn small', onclick: () => measure() }, 'Zmierz'), latMsg)),
-      row('Najpierw oceniam sam', 'W Echu i Echu dynamiki po próbie najpierw ty mówisz, jak poszło (C56 dobrze, C57 średnio, C58 źle), potem Trener. Trener liczy, jak dobrze słyszysz siebie. Bez odpowiedzi przez 5 sekund idzie dalej.',
-        el('input', { type: 'checkbox', checked: s.selfCheck !== false, onchange: (e) => { s.selfCheck = e.target.checked; store.save(); } })),
       row('Fiszki z błędów', 'Motyw z Echa albo melodia Ze słuchu, które nie wyszły, same trafiają do fiszek (najwyżej 3 dziennie).',
         el('input', { type: 'checkbox', checked: s.autoCards, onchange: (e) => { s.autoCards = e.target.checked; store.save(); } })),
       row('Poziomy', 'Wyzeruj poziom jednego trybu, jeśli chcesz zacząć od nowa.',

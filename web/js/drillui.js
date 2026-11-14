@@ -3,7 +3,7 @@
 import * as store from './store.js';
 import { el, fill, status } from './ui.js';
 import { describe, AXES, axisNames } from './ladders.js';
-import { Series, SERIES_LEN, selfBand, selfStats, coldTrend, dueDebt, settleDebt, addDebt, speedCurve } from './drill.js';
+import { Series, SERIES_LEN, coldTrend, dueDebt, settleDebt, addDebt, speedCurve } from './drill.js';
 
 const fmt = (x) => x.toFixed(1).replace('.', ',');
 
@@ -36,13 +36,14 @@ export function createDrill(id, { title, about, focus = () => null }) {
         el('span', { class: 'dl-series', title: 'Seria 10 prób, potem podsumowanie.' }, `seria ${series.count}/${series.len}`)));
   }
 
-  function counted(scores, passed, tip) {
+  function counted(scores, passed, tip, { cold: coldOk = true } = {}) {
     const rec = store.mode(id);
     const total = Object.values(scores).filter(Number.isFinite);
     const score = total.length ? Math.round(total.reduce((a, b) => a + b, 0) / total.length) : 0;
-    // cold start (1.11): the first counted attempt of the day is kept apart; it shows what stayed overnight
+    // cold start (1.11): the first counted new attempt of the day is kept apart (a rewanż never counts as one);
+    // it shows what stayed overnight
     const day = store.today();
-    const cold = rec.coldDay !== day;
+    const cold = coldOk && rec.coldDay !== day;
     if (cold) {
       const kept = Object.entries(rec.cold || {}).sort((a, b) => a[0].localeCompare(b[0])).slice(-29);
       rec.cold = Object.fromEntries([...kept, [day, score]]);
@@ -54,7 +55,6 @@ export function createDrill(id, { title, about, focus = () => null }) {
     if (series.done) {
       summary = series.summary(store.axes(id, names));
       summary.cold = coldTrend(rec.cold, day);
-      summary.self = selfStats((rec.self || []).slice(-30));
       if (rec.speed && rec.speed.length) summary.speed = speedCurve(rec.speed);
       store.logSeries(id, summary);
       series = new Series(names, store.axes(id, names));
@@ -70,41 +70,10 @@ export function createDrill(id, { title, about, focus = () => null }) {
     settle: (debt, passed) => { const rec = store.mode(id); rec.debts = settleDebt(rec.debts, debt, passed, store.today()); store.save(); },
   };
 
-  // "Jak poszło?" (1.11): your own verdict before the real one. C56 dobrze, C57 średnio, C58 źle.
-  let asking = null;
-  function ask(wrap, timeout = 5000) {
-    if (store.data.settings.selfCheck === false) return Promise.resolve(null);
-    return new Promise((resolve) => {
-      const done = (band) => { if (!asking) return; clearTimeout(asking.timer); asking = null; resolve(band); };
-      const b = (band, label, key) => el('button', { class: `btn self-${band}`, onclick: () => done(band) }, label, el('kbd', {}, key));
-      fill(wrap, status('Jak poszło?', 'turn'),
-        el('div', { class: 'self-ask' }, b('good', 'Dobrze', 'C56'), b('mid', 'Średnio', 'C57'), b('bad', 'Źle', 'C58'),
-          el('span', { class: 'muted' }, 'Najpierw twoja ocena, potem moja.')));
-      asking = { done, timer: setTimeout(() => done(null), timeout) };
-    });
-  }
-  function pilotAnswer(a) {
-    if (!asking) return false;
-    asking.done({ start: 'good', repeat: 'mid', hint: 'bad' }[a] || null);
-    return true;
-  }
-  /** Keep the self-verdict; returns a short line for under the tip, or null. */
-  function recordSelf(self, score, scores) {
-    if (!self) return null;
-    const rec = store.mode(id);
-    const actual = selfBand(score);
-    const tested = Object.entries(scores).filter(([, v]) => Number.isFinite(v));
-    const weak = tested.length > 1 ? tested.sort((a, b) => a[1] - b[1])[0][0] : null;
-    rec.self = [...(rec.self || []), { self, actual, weak }].slice(-60);
-    store.save();
-    const W = { good: 'dobrze', mid: 'średnio', bad: 'źle' };
-    return self === actual ? `Twoja ocena: ${W[self]}. Zgadza się.` : `Twoja ocena: ${W[self]}, moja: ${W[actual]}${weak && self === 'good' ? ` (${labels[weak].toLowerCase()})` : ''}.`;
-  }
-
   refresh();
   return {
     head, refresh, counted, names, labels, get series() { return series; }, axes: () => store.axes(id, names),
-    debts, ask, pilotAnswer, recordSelf, get asking() { return !!asking; },
+    debts,
   };
 }
 
@@ -129,7 +98,7 @@ export function toggleDetails(root) {
   return true;
 }
 
-/** A line under the tip (your own verdict, a variation note). */
+/** A line under the tip (cold start, a variation note). */
 export function addLine(wrap, text) {
   if (text) wrap.append(el('p', { class: 'self-line' }, text));
 }
@@ -166,7 +135,6 @@ export function seriesCard(sum, labels, onNext) {
     el('div', { class: 'ds-axes' }, sum.axes.map((a) => el('div', { class: `ds-ax ${arrow(a)}` },
       el('b', {}, labels[a.name] || a.name), el('span', {}, `${fmt(a.from)} → ${fmt(a.to)}`)))),
     coldLine(sum.cold),
-    sum.self && sum.self.n >= 4 ? el('p', { class: 'ds-line' }, el('b', {}, 'Ucho na siebie: '), `trafiasz ${sum.self.hits} z ${sum.self.n} własnych ocen${sum.self.weakest && sum.self.over >= 2 ? `; najczęściej przeceniasz: ${(labels[sum.self.weakest.axis] || sum.self.weakest.axis).toLowerCase()}` : ''}.`) : null,
     sum.speed ? speedLine(sum.speed) : null,
     sum.tip ? el('p', { class: 'ds-tip' }, el('b', {}, 'Najczęściej: '), sum.tip.text)
       : el('p', { class: 'ds-tip' }, sum.ok * 2 < sum.n ? 'Trudna seria. Poziom już się dopasował: następna będzie trochę łatwiejsza.' : 'Bez powtarzającego się błędu. Tak trzymaj.'),

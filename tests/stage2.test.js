@@ -1,27 +1,8 @@
-// 1.11: stage 2 of the exercises — self-assessment, cold start, rewanż, speed curve, variations, legato.
+// 1.11: stage 2 of the exercises — cold start, rewanż, speed curve, variations, legato.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { selfBand, selfStats, coldTrend, dueDebt, settleDebt, addDebt, speedCurve } from '../web/js/drill.js';
+import { coldTrend, dueDebt, settleDebt, addDebt, speedCurve } from '../web/js/drill.js';
 import * as M from '../web/js/music.js';
-
-test('self-assessment: bands and how well you hear yourself', () => {
-  assert.equal(selfBand(85), 'good');
-  assert.equal(selfBand(60), 'mid');
-  assert.equal(selfBand(10), 'bad');
-  const s = selfStats([
-    { self: 'good', actual: 'good' },
-    { self: 'good', actual: 'mid', weak: 'rytm' },
-    { self: 'good', actual: 'bad', weak: 'rytm' },
-    { self: 'bad', actual: 'mid', weak: 'melodia' },
-    { self: 'mid', actual: 'mid' },
-  ]);
-  assert.equal(s.n, 5);
-  assert.equal(s.hits, 2);
-  assert.equal(s.over, 2);
-  assert.equal(s.under, 1);
-  assert.deepEqual(s.weakest, { axis: 'rytm', n: 2 });
-  assert.equal(selfStats([]).rate, null);
-});
 
 test('cold start: today and the mean of the days before', () => {
   const t = coldTrend({ '2026-11-10': 60, '2026-11-12': 70, '2026-11-14': 85 }, '2026-11-14');

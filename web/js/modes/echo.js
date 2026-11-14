@@ -127,15 +127,10 @@ export function mount(stage, ctx) {
     }
     const counts = coach.counts;
     const scores = Object.fromEntries(drill.names.map((a) => [a, m.tested && m.tested.includes(a) ? g.scores[a] : null]));
-    // your own verdict first (only for attempts that count)
-    let self = null;
-    if (counts) { phase = 'ask'; self = await drill.ask(line); if (!alive) return; phase = 'result'; }
     const wasComeback = coach.isComeback;
     let rec2 = null;
-    let selfLine = null;
     if (counts) {
-      rec2 = drill.counted(scores, g.passed, g.tip);
-      selfLine = drill.recordSelf(self, rec2.score, scores);
+      rec2 = drill.counted(scores, g.passed, g.tip, { cold: !debt });
       if (m.tested.includes('rytm')) { rec.speed = [...(rec.speed || []), [m.tempo, g.scores.rytm]].slice(-120); store.save(); }
     }
     let decision = coach.after(g.passed);
@@ -147,17 +142,16 @@ export function mount(stage, ctx) {
     const lg = drill.axes().melodia >= 6 && !m.easy ? gradeLegato(m, g.aligned) : null;
     const tip = g.passed && lg && lg.tip ? lg.tip : g.tip;
     setStatus(g.passed ? (m.easy ? 'Tak. Teraz w normalnym tempie.' : 'Jest! Dokładnie tak.') : 'Prawie.', g.passed ? 'good' : 'bad', tip);
-    addLine(line, selfLine);
     if (rec2 && rec2.cold) addLine(line, `Zimny start dziś: ${rec2.score} pkt.`);
     if (tip && tip.mark) { ctx.keyboard.mark(tip.mark.map((x) => ({ ...x, tone: 'var(--c-echo)' }))); clearTimeout(markTimer); markTimer = setTimeout(() => ctx.keyboard.mark([]), 4000); }
     showResult(m, g, rec2, lg);
     renderOpts();
     if (rec2 && rec2.summary) { result.append(seriesCard(rec2.summary, drill.labels, () => next())); dock.setPrimary('Następna seria'); return; }
     dock.setPrimary('Następne');
-    if (decision === 'next') later(next, g.passed ? 2600 : 3600);
-    else if (decision === 'retry') later(() => present(motif, SAY.retry), 3200);
-    else if (decision === 'simplify') later(() => present(easierMotif(motif), SAY.simplify), 3200);
-    else if (decision === 'full') later(() => present(motif, SAY.full), 2600);
+    if (decision === 'next') later(next, g.passed ? 1300 : 1800);
+    else if (decision === 'retry') later(() => present(motif, SAY.retry), 1600);
+    else if (decision === 'simplify') later(() => present(easierMotif(motif), SAY.simplify), 1600);
+    else if (decision === 'full') later(() => present(motif, SAY.full), 1300);
   }
 
   function showResult(m, g, rec2, lg) {
@@ -224,7 +218,7 @@ export function mount(stage, ctx) {
     present(motif, got.comeback ? SAY.comeback : motif.variation ? `Wariacja: ten sam motyw ${motif.variation}.` : '');
   }
 
-  function primary() { if (phase !== 'listen' && phase !== 'sing' && phase !== 'ask') next(); }
+  function primary() { if (phase !== 'listen' && phase !== 'sing') next(); }
 
   function replay() {
     clearTimeout(auto);
@@ -244,7 +238,6 @@ export function mount(stage, ctx) {
   return {
     onNote(e) { if (e.on && looper.active) looper.stop(); if (capture) capture.feed(e); },
     onPilot(a) {
-      if (drill && drill.pilotAnswer(a)) return;
       if (a === 'start') primary();
       if (a === 'repeat') replay();
       if (a === 'hint') hint();

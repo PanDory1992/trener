@@ -75,17 +75,13 @@ export function mount(stage, ctx) {
     phase = 'result';
     const g = gradeDynamics(p, got);
     const counts = coach.counts;
-    let self = null;
-    if (counts) { phase = 'ask'; fill(live); self = await drill.ask(line); if (!alive) return; phase = 'result'; }
     const wasComeback = coach.isComeback;
     let r = null;
-    let selfLine = null;
-    if (counts) { r = drill.counted({ ksztalt: g.score }, g.passed, g.tip); selfLine = drill.recordSelf(self, r.score, { ksztalt: g.score }); }
+    if (counts) r = drill.counted({ ksztalt: g.score }, g.passed, g.tip, { cold: !debt });
     let decision = coach.after(g.passed);
     if (debt) { drill.debts.settle(debt, g.passed); debt = null; decision = 'next'; }
     else if (counts && !g.passed && !wasComeback) drill.debts.add(phrase);
     setStatus(g.passed ? (p.easy ? 'Tak. Teraz bez podglądu.' : 'Kształt złapany.') : 'Jeszcze nie ten kształt.', g.passed ? 'good' : 'bad', g.tip);
-    addLine(line, selfLine);
     if (r && r.cold) addLine(line, `Zimny start dziś: ${r.score} pkt.`);
     fill(live);
     fill(result, details(id, [
@@ -102,10 +98,10 @@ export function mount(stage, ctx) {
     );
     if (r && r.summary) { result.append(seriesCard(r.summary, drill.labels, () => next())); dock.setPrimary('Następna seria'); return; }
     dock.setPrimary('Następne');
-    if (decision === 'next') later(next, g.passed ? 3000 : 3800);
-    else if (decision === 'retry') later(() => present(phrase, SAY.retry), 3400);
-    else if (decision === 'simplify') later(() => present({ ...phrase, easy: true }, 'Teraz łatwiej: kształt widać na wykresie.'), 3400);
-    else if (decision === 'full') later(() => present(phrase, SAY.full), 2800);
+    if (decision === 'next') later(next, g.passed ? 1500 : 1900);
+    else if (decision === 'retry') later(() => present(phrase, SAY.retry), 1700);
+    else if (decision === 'simplify') later(() => present({ ...phrase, easy: true }, 'Teraz łatwiej: kształt widać na wykresie.'), 1700);
+    else if (decision === 'full') later(() => present(phrase, SAY.full), 1400);
   }
 
   function next() {
@@ -125,7 +121,7 @@ export function mount(stage, ctx) {
     dock.setPrimary('Następne');
     present(phrase, got.comeback ? SAY.comeback : '');
   }
-  function primary() { if (phase !== 'listen' && phase !== 'ask') next(); }
+  function primary() { if (phase !== 'listen') next(); }
   function replay() { clearTimeout(auto); if (!phrase) return next(); present(shown || phrase); }
   function hint() {
     if (phase === 'result' && toggleDetails(result)) return;
@@ -137,7 +133,6 @@ export function mount(stage, ctx) {
   return {
     onNote(e) { if (e.on && looper.active) looper.stop(); if (capture) capture.feed(e); },
     onPilot(a) {
-      if (drill.pilotAnswer(a)) return;
       if (a === 'start') primary();
       if (a === 'repeat') replay();
       if (a === 'hint') hint();

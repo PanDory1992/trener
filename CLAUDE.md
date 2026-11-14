@@ -101,9 +101,9 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
   - generatory przyjmują osie: `echoMotif(axes, seed, {focus, hand})`, `aksakPlan(axes)`, `earMelody(level, seed, {leapBias})`; oceny zwracają `scores` i `tip` `{kind, text, mark?}` (`gradeEcho`, `gradeDynamics`, `gradeAksak` z `drift`); `easierMotif`, `easierAksak`;
   - Echo dynamiki: tolerancje pod Keystation, czarny klawisz z surowym 1 nie jest oceniany; Nuty docelowe odejmują `settings.latencyMs`; pomiar opóźnienia jest w Ustawieniach (`measureLatency` w `modes/common.js`).
   - **Etap 2 (1.11)**, testy `stage2.test.js`:
-    - `drill.js`: `selfBand` / `selfStats` (Ucho na siebie: `rec.self`), `coldTrend` (zimny start: `rec.cold {data: wynik}`, `rec.coldDay`), `dueDebt` / `settleDebt` / `addDebt` (Rewanż: `rec.debts`, jedno podejście dziennie, po 3 nieudanych rewanżach odpuszcza), `speedCurve` (tempo graniczne z `rec.speed [tempo, rytm]`);
+    - `drill.js`: `coldTrend` (zimny start: `rec.cold {data: wynik}`, `rec.coldDay`; pierwsza liczona próba dnia, ale nie rewanż: `counted(..., {cold: !debt})`), `dueDebt` / `settleDebt` / `addDebt` (Rewanż: `rec.debts`, jedno podejście dziennie, po 3 nieudanych rewanżach odpuszcza), `speedCurve` (tempo graniczne z `rec.speed [tempo, rytm]`);
     - `music.js`: `variedMotif` (co 4. świeży motyw w Echu: inna tonacja, oktawa albo ręka), `earVariation` (Ze słuchu), `gradeLegato` (Echo od melodii 6; potrzebuje puszczeń klawiszy: `Capture.feed` zapisuje `off`, nie kończy przechwytu);
-    - `drillui.js`: `ask()` „Jak poszło?” (C56/C57/C58 przez `pilotAnswer`, wyłącznik `settings.selfCheck`), `recordSelf`, `debts`, `details()` (szczegóły zwinięte, C58 otwiera, `settings.detailsOpen`), `addLine`; `seriesCard` pokazuje zimny start, ucho na siebie i tempo graniczne;
+    - `drillui.js`: `debts`, `details()` (szczegóły zwinięte, C58 otwiera, `settings.detailsOpen`), `addLine`; `seriesCard` pokazuje zimny start i tempo graniczne;
     - Echo: „Najpierw zaśpiewaj” (`opt.sing`), „Tempo 90% granicy” (`opt.tempo90`); Ze słuchu: „Najpierw zaśpiewaj”; Plan dnia: panel „Zimny start” (`coldPanel`).
 - `pedalcoach.js` (13.11): przy każdej zmianie harmonii ocenia pedał: `good` (zmieniony zaraz po akordzie), `blur` (trzymany przez zmianę), `early` (puszczony za wcześnie). Werdykt na chwilę w „Co ja gram?”, licznik dnia `days[d].pedal_*`, panel „Pedał dziś” w Planie dnia.
 
@@ -149,7 +149,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, 153 testy. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 152 testy. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
 - Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
@@ -186,7 +186,8 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
-| 1.11 | 14.11 | Ćwiczenia, etap 2 z `claude/trener-cwiczenia-plan.md`: „Jak poszło?” (własna ocena przed werdyktem, trafność w podsumowaniu serii), szczegóły zwinięte (C58), Najpierw zaśpiewaj (Echo, Ze słuchu), zimny start (panel w Planie dnia), Rewanż, wariacje dobrze zagranych motywów, tempo graniczne (Echo), legato (Echo). |
+| 1.11.1 | 14.11 | Bez samooceny „Jak poszło?” (Miki jej nie chce); zimny start pomija rewanż; automatyczne przejście do następnej próby dwa razy szybsze (Echo 1,3–1,8 s, Echo dynamiki 1,4–1,9 s, Ze słuchu 1,9 s). |
+| 1.11 | 14.11 | Ćwiczenia, etap 2 z `claude/trener-cwiczenia-plan.md`: szczegóły zwinięte (C58), Najpierw zaśpiewaj (Echo, Ze słuchu), zimny start (panel w Planie dnia), Rewanż, wariacje dobrze zagranych motywów, tempo graniczne (Echo), legato (Echo). |
 | 1.10 | 14.11 | Ćwiczenia na wspólnym szkielecie: punkty 0–100, osie trudności, pętla błędu i powroty, jedna rada pod werdyktem, serie 10 prób z podsumowaniem (Plan dnia: „Serie dziś”), Teraz/Dalej, jednakowe przyciski; Echo: ręka i fokus; Echo dynamiki: tolerancje Keystation i podgląd na żywo; Siłownia: czas reakcji w wyniku, poprzedni akord na klawiszach; Nuty docelowe: dźwięki akordu na klawiszach, wynik na akord; Ze słuchu: podpowiedź interwałem, więcej trudnych interwałów; Aksak: wykres tempa; pomiar opóźnienia w Ustawieniach. Plan: `claude/trener-cwiczenia-plan.md`. |
 | 1.9 | 13.11 | Pasek grania nad klawiaturą (wariant B z `claude/trener-ui-plan.md`): przyciski grania zawsze widoczne w jednym miejscu. Jam: style z listy zamiast 34 kart, rzadkie ustawienia zwinięte, „Dlaczego?” zwinięte. Piosenki: jeden wybór „Kto gra”, akompaniament podglądu zwinięty, krótsza lista piosenek. |
 | 1.8.2 | 12.11 | Piosenki: zespół gra piosenkę od razu (perkusja i bas albo cały zespół), bez przechodzenia do Jamu. Style w grupach przeniesione do `grooves.js` (`GROOVE_GROUPS`). |

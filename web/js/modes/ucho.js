@@ -184,7 +184,7 @@ export function mount(stage, ctx) {
       if (card) setTimeout(() => ctx.onResult && ctx.onResult(passed), 1800);
       else if (coach.counts) {
         const score = gaveUp ? 0 : Math.max(0, 100 - 10 * mistakes - 15 * Math.max(0, hints - (mel.showFirst ? 0 : 1)));
-        r = drill.counted({ ucho: score }, passed, tip);
+        r = drill.counted({ ucho: score }, passed, tip, { cold: !debt });
       }
       if (!card) {
         const wasComeback = coach.isComeback;
@@ -201,7 +201,7 @@ export function mount(stage, ctx) {
     setStatus(gaveUp ? `Oto rozwiązanie.${title}` : passed ? `Znalezione!${title}` : `Znalezione, z pomocą.${title}`, gaveUp ? '' : passed ? 'good' : 'bad', tip);
     if (r && r.cold) addLine(line, `Zimny start dziś: ${r.score} pkt.`);
     if (r && r.summary) { fill(result, seriesCard(r.summary, drill.labels, () => next())); dock.setPrimary('Następna seria'); return; }
-    if (!card && !gaveUp) { clearTimeout(auto); auto = setTimeout(() => alive && next(), 3800); }
+    if (!card && !gaveUp) { clearTimeout(auto); auto = setTimeout(() => alive && next(), 1900); }
     if (!card && !passed && store.data.settings.autoCards) {
       const t = store.today();
       if (store.data.cards.filter((c) => c.created === t && c.auto).length < 3) {

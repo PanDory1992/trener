@@ -314,8 +314,24 @@ function weekPanel() {
     el('p', {}, 'Zakres ', el('b', {}, `${c.lo_level}–${c.hi_level}`), was(0, p && `${p.lo_level}–${p.hi_level}`), `, ${c.notes} nut.`),
     el('p', {}, `Równość: sąsiednie nuty różnią się średnio o ${c.even ?? '–'}${was(0, p && p.even)}. Lewa ręka ${r0(c.left)}, prawa ${r0(c.right)}.`),
     el('p', { class: 'muted' }, `Czarne klawisze uderzasz z siłą ${r0(c.black)}, białe ${r0(c.white)}. „1” (za wolne dotknięcie) na czarnych: ${Math.round((c.black_ones || 0) * 1000) / 10}%.`),
+    handTrend(w.hand),
     t ? el('p', { class: 'week-task' }, el('b', {}, `Zadanie: ${t.title}. `), t.text) : null,
     t && MODES[t.mode] ? el('button', { class: 'btn small', onclick: () => go(t.mode) }, `Otwórz: ${MODES[t.mode].title}`) : null);
+}
+
+/**
+ * The hand itself, week by week (1.15): raw velocity of white keys, before any touch curve. If the soft end (the
+ * quietest 10%) goes down over the weeks, the fingers learn to play softly; a curve cannot fake that.
+ */
+function handTrend(list) {
+  if (!list || list.length < 2) return null;
+  const a = list[0], z = list[list.length - 1];
+  const d = z.p10 - a.p10;
+  return el('div', { class: 'hand-trend' },
+    el('p', {}, el('b', {}, 'Twoja ręka, tydzień po tygodniu. '), 'Surowa siła białych klawiszy, zanim zadziała krzywa: najcichsze 10% / zwykle.'),
+    el('div', { class: 'ht-row' }, list.map((x) => el('span', { class: 'ht', title: `${x.notes} nut` }, el('i', {}, x.week.replace(/^\d{4}-/, '')), `${x.p10} / ${x.median}`))),
+    el('p', { class: 'muted' }, Math.abs(d) < 3 ? 'Dół stoi w miejscu. Ciche granie przyjdzie z ćwiczeń dynamiki, krzywa go nie zrobi.'
+      : d < 0 ? `Najcichsze uderzenia zeszły o ${-d}. Palce uczą się grać ciszej, to prawdziwy postęp.` : `Najcichsze uderzenia podniosły się o ${d}. Zwróć uwagę na ciche frazy.`));
 }
 
 /** Series finished today in the exercises (1.10). */

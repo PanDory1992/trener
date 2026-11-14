@@ -1173,3 +1173,9 @@ body.compact .dock-stack > .play-row, body.compact .dock-stack > .actions { flex
 .imp-map .hit.lh { fill: var(--role-1); }
 .imp-map .hit.rh { fill: var(--c-improv); }
 @media (max-width: 700px) { .imp-hands { grid-template-columns: 1fr; } .imp-chord { font-size: 46px; } }
+
+/* ręka tydzień po tygodniu (1.15) */
+.hand-trend { margin-top: 10px; }
+.ht-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.ht { background: var(--panel-2, rgba(255,255,255,.05)); border-radius: 8px; padding: 3px 8px; font-variant-numeric: tabular-nums; font-size: 14px; }
+.ht i { font-style: normal; color: var(--ink-3); margin-right: 6px; font-size: 12px; }

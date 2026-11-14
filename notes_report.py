@@ -137,6 +137,32 @@ def task_for(s: dict) -> dict:
             "mode": "piosenki"}
 
 
+_hand_cache: dict = {}
+
+
+def hand_week(path: Path) -> dict | None:
+    """The hand itself, week by week (15.11): raw velocity of white keys without the "1"s, before any curve.
+    p10 = how softly you really play, median = your usual touch. Cached by file time (the past weeks never change)."""
+    try:
+        key = (str(path), path.stat().st_mtime)
+    except OSError:
+        return None
+    if key not in _hand_cache:
+        raw = sorted(r[2] for r in read_rows(path) if r[1] % 12 not in BLACK and r[2] > 1)
+        _hand_cache[key] = {"notes": len(raw), "p10": _pct(raw, 0.1), "median": _pct(raw, 0.5)} if len(raw) >= MIN_NOTES else None
+    return _hand_cache[key]
+
+
+def hand_trend(folder: Path, today: datetime.date, weeks: int = 6) -> list[dict]:
+    out = []
+    for k in range(weeks - 1, -1, -1):
+        day = today - datetime.timedelta(days=7 * k)
+        h = hand_week(week_file(folder, day))
+        if h:
+            out.append({"week": week_label(day), **h})
+    return out
+
+
 def week_report(folder: Path, today: datetime.date | None = None) -> dict:
     today = today or datetime.date.today()
     prev_day = today - datetime.timedelta(days=7)
@@ -144,7 +170,8 @@ def week_report(folder: Path, today: datetime.date | None = None) -> dict:
     prev = week_stats(read_rows(week_file(folder, prev_day)))
     return {"ok": cur["notes"] > 0 or prev["notes"] > 0, "week": week_label(today), "prev_week": week_label(prev_day),
             "cur": cur, "prev": prev, "task": task_for(cur if cur["notes"] >= MIN_NOTES or prev["notes"] < MIN_NOTES else prev),
-            "task_from": "cur" if cur["notes"] >= MIN_NOTES or prev["notes"] < MIN_NOTES else "prev"}
+            "task_from": "cur" if cur["notes"] >= MIN_NOTES or prev["notes"] < MIN_NOTES else "prev",
+            "hand": hand_trend(folder, today)}
 
 
 def recent_rows(folder: Path, days: int = 3, today: datetime.date | None = None) -> list[tuple]:

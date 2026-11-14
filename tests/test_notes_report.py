@@ -66,4 +66,18 @@ with tempfile.TemporaryDirectory() as d:
     # little playing: a task to play, not a verdict
     check("few", nr.task_for(nr.week_stats(rr))["title"] == "Najpierw pograj")
 
+# --- the hand week by week (15.11): raw white keys, p10 and median, oldest first -------------------------
+with tempfile.TemporaryDirectory() as d:
+    folder = Path(d)
+    for k, (soft, usual) in enumerate(((80, 100), (70, 98))):          # two weeks ago, then last week
+        dd = day - datetime.timedelta(days=7 * (1 - k))
+        tt = datetime.datetime.combine(dd, datetime.time(18)).timestamp()
+        rows = [(tt + i * 0.3, "on", 72 if i % 4 else 73, soft if i % 3 == 0 else usual, 80) for i in range(400)]
+        rows += [(tt + 500, "on", 72, 1, 10)] * 50                          # "1"s do not count
+        write(folder, dd, rows)
+    h = nr.week_report(folder, day)["hand"]
+    check("hand: two weeks, oldest first", [x["week"] for x in h] == [nr.week_label(day - datetime.timedelta(days=7)), nr.week_label(day)])
+    check("hand: p10 drops (black 73 and 1s ignored)", h[0]["p10"] == 80 and h[1]["p10"] == 70 and h[1]["median"] == 98)
+    check("hand: cached", nr.hand_week(nr.week_file(folder, day)) is nr.hand_week(nr.week_file(folder, day)))
+
 print("ALL OK" if ok else "FAILURES")

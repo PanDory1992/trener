@@ -42,6 +42,9 @@ def main():
         v = 30 + (i * 13) % 80
         lines.append(f"{t0 + i * 0.3:.4f},on,{note},{v},{v},0.0\n")
     (notes / f"notes-{y}-W{w:02d}.csv").write_text("".join(lines), encoding="ascii")
+    # last week, a little louder: the hand trend (1.15) has two weeks to show
+    py, pw, _ = (datetime.date.today() - datetime.timedelta(days=7)).isocalendar()
+    (notes / f"notes-{py}-W{pw:02d}.csv").write_text("".join(f"{t0 - 7 * 86400 + i * 0.3:.4f},on,{69 + i % 5},{40 + (i * 13) % 80},{60},0.0\n" for i in range(600)), encoding="ascii")
     bus = UdpBus()
     bus.state_fn = lambda: {"v": 1, "connected": True, "mode": "sustain", "pedal": 0, "una_corda": False, "touch": "acoustic", "ones": "context", "updated": time.time()}
     bus.start()
@@ -94,6 +97,7 @@ def main():
             ok("week card", "Twoja dynamika w tym tygodniu" in home and "Zakres" in home and "Zadanie" in home, home[-600:].replace("\n", " | "))
             ok("pedal today", "Pedał dziś" in home and "50%" in home)
             ok("dyn bar", pg.locator(".dynbar i").count() == 8)
+            ok("hand trend: two weeks", pg.locator(".hand-trend .ht").count() == 2 and "Twoja ręka" in home, pg.inner_text(".hand-trend") if pg.locator(".hand-trend").count() else "")
             pg.locator(".week-dyn").screenshot(path=str(SCRATCH / "pedal-week.png"))
             b.close()
     finally:

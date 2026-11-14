@@ -1,6 +1,6 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.14** (14.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.15** (15.11.2026).
 
 **Stan: zamrożenie funkcji** (decyzja Mikiego 10.11). Nie dodajemy funkcji bez wyraźnej prośby. Dozwolone: poprawki błędów, dokumentacja, testy.
 
@@ -139,6 +139,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 **Serwer:** `trener_serwer.py`:
 - GET `/`, `/api/events` (SSE), `/api/now`, `/api/data`, `/api/insights`, `/api/week`, `/api/phone`;
 - `notes_report.py` (13.11): czyta tygodniowe pliki routera `../notes/notes-RRRR-Wtt.csv`; `/api/week` = dynamika tego tygodnia i poprzedniego oraz jedno zadanie (karta „Twoja dynamika” w Planie dnia); `/api/insights` też czyta stąd. Czarne i białe porównuje na surowej sile bez „1”, bo krzywa routera i dziura w czarnych klawiszach zaniżają czarne;
+- `notes_report.hand_trend` (1.15): „Twoja ręka, tydzień po tygodniu” w karcie dynamiki: surowa siła białych klawiszy bez „1” (przed krzywą czucia), najcichsze 10% i mediana z ostatnich 6 tygodni (`hand` w `/api/week`, cache po czasie pliku). Spadek dolnej granicy = palce uczą się grać ciszej; krzywa tego nie podrobi.
 - POST `/api/play`, `/api/stop`, `/api/data`, `/api/quit`;
 - `VERSION = "1.8"`.
 
@@ -193,6 +194,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.15 | 15.11 | Karta „Twoja dynamika”: trend ręki tydzień po tygodniu (surowa siła, najcichsze 10% / mediana). Router (poza Trenerem): czucie **Moje** (krzywa z gry Mikiego, CLAHE z limitem nachylenia 2,5, plus odszumianie kontekstowe; badanie w `CodexPedalModes/symulacja-krzywej-20261115`), jeden przycisk C53 przełącza czucie po kolei, czas puszczania pedału 60/120/250 ms; Keystation Status 0.5.0. Serwer zmieniony: restart nadzorcy. |
 | 1.14 | 14.11 | Nowy tryb **Improwizacja** (prośba Mikiego): lewa jest basem z drabinką 6 wzorów, prawa improwizuje według jednej z 8 zasad, zespół gra pętlę (sama perkusja); osobne poziomy rąk, mapa czasu, rozjazd rąk, swing, przestrzeń, dryf lewej. |
 | 1.13.1 | 14.11 | Siłownia: poziom zmienia się raz na całą progresję (oba przebiegi), nie po każdym akordzie (`roundResult` w `drill.js`: średnia, zaliczona tylko gdy każdy akord, rada najsłabszego). Seria = 10 progresji. Pominięty akord = 0. |
 | 1.13 | 14.11 | Siłownia: tryb Przewroty (8 etapów, własny poziom), Dowolny przewrót (domyślnie), każda progresja dwa razy (tak samo, w przewrotach albo z septymami), 14 nowych podstawowych progresji (rodzina Podstawy), czytelne „Na dole: X” przy akordach z kreską. |

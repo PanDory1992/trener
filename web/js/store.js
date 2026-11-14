@@ -16,6 +16,7 @@ export const MODES = {
   docelowe: { title: 'Nuty docelowe', long: 'Gra w nuty docelowe', color: 'var(--c-cel)', blurb: 'Improwizujesz, trafiając w akordy.' },
   ucho: { title: 'Ze słuchu', long: 'Znajdź ze słuchu', color: 'var(--c-ucho)', blurb: 'Gram melodię, ty ją znajdujesz.' },
   aksak: { title: 'Aksak', long: 'Aksak: rytmy bałkańskie', color: 'var(--c-aksak)', blurb: 'Nieparzyste metrum: 7/8, 9/8, 11/8.' },
+  improv: { title: 'Improwizacja', long: 'Improwizacja: lewa gra, prawa śpiewa', color: 'var(--c-improv)', blurb: 'Zespół gra pętlę, lewa jest basem, prawa improwizuje według jednej zasady.' },
   fiszki: { title: 'Fiszki', long: 'Fiszki dla rąk', color: 'var(--c-fiszki)', blurb: 'Powtórki tego, co ma zostać w palcach.' },
   wolne: { title: 'Dla przyjemności', long: 'Granie dla przyjemności', color: 'var(--c-plan)', blurb: 'Grasz, co chcesz.' },
 };

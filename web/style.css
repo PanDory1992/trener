@@ -20,6 +20,7 @@
   --c-jam: #ffd23f;
   --c-song: #ff8fab;
   --c-palce: #7fd1ff;
+  --c-improv: #f59e0b;
 
   --good: #8bd450;
   --warn: #f5b83d;
@@ -1145,3 +1146,30 @@ body.compact .dock-stack > .play-row, body.compact .dock-stack > .actions { flex
 .cold-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .cold-list li { color: var(--ink-2); border-left: 3px solid var(--c, var(--mode)); padding-left: 10px; }
 .cold-list b { color: var(--ink); }
+
+/* --- improwizacja (1.14) ----------------------------------------------------------------------- */
+.improv-board { display: grid; gap: 12px; margin: 6px 0 10px; }
+.imp-hands { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.imp-hand { background: var(--panel); border-radius: 14px; padding: 12px 16px; border-left: 4px solid var(--c-improv); }
+.imp-hand.lh { border-left-color: var(--role-1); }
+.imp-hand b { display: block; font-size: 19px; margin: 2px 0 4px; }
+.imp-hand p { margin: 0; color: var(--ink-2); font-size: 15px; line-height: 1.45; }
+.imp-k { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.imp-vamp { color: var(--ink-3); font-size: 15px; }
+.imp-live { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.imp-chord { font-size: 64px; font-weight: 800; color: var(--c-improv); min-width: 120px; line-height: 1; }
+.imp-bars { display: flex; gap: 6px; }
+.imp-bars .ib { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--panel); color: var(--ink-3); font-size: 13px; }
+.imp-bars .ib.quiet { opacity: .55; border: 1px dashed var(--ink-3); }
+.imp-bars .ib.done { color: var(--ink-2); }
+.imp-bars .ib.now { background: var(--c-improv); color: #1b1530; font-weight: 700; }
+.imp-cue { font-size: 18px; color: var(--ink-2); }
+.imp-cue.quiet { color: var(--ink-3); font-style: italic; }
+.imp-map { width: 100%; max-width: 760px; height: auto; }
+.imp-map .beat { stroke: color-mix(in srgb, var(--ink-3) 30%, transparent); stroke-width: 1; }
+.imp-map .bar { stroke: color-mix(in srgb, var(--ink-3) 70%, transparent); stroke-width: 2; }
+.imp-map .lane { fill: var(--ink-3); font-size: 12px; }
+.imp-map .target { fill: none; stroke: var(--role-1); stroke-width: 1.5; opacity: .7; }
+.imp-map .hit.lh { fill: var(--role-1); }
+.imp-map .hit.rh { fill: var(--c-improv); }
+@media (max-width: 700px) { .imp-hands { grid-template-columns: 1fr; } .imp-chord { font-size: 46px; } }

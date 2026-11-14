@@ -1,6 +1,7 @@
 // What a level means, in words, for each exercise and axis (1.10). Pure; kept next to the generators in music.js:
 // every rung here is a threshold there (tests/ladders.test.js checks the important ones).
 import { rung } from './drill.js';
+import { LH, RH } from './improv.js';
 
 export const AXES = {
   echo: [['melodia', 'Melodia'], ['rytm', 'Rytm'], ['dynamika', 'Dynamika']],
@@ -9,6 +10,7 @@ export const AXES = {
   docelowe: [['docelowe', 'Harmonia']],
   ucho: [['ucho', 'Słuch']],
   aksak: [['metrum', 'Metrum'], ['puls', 'Puls']],
+  improv: [['lewa', 'Lewa ręka'], ['prawa', 'Prawa ręka']],
 };
 
 export const axisNames = (id) => (AXES[id] || []).map(([n]) => n);
@@ -45,6 +47,11 @@ export const LADDERS = {
     metrum: [[1, '7/8 i 5/8'], [3, 'lesnoto 3+2+2'], [6, '9/8'], [9, '11/8']],
     puls: [[1, 'z cichymi ósemkami'], [6, 'bez podpowiedzi ósemek'], [9, 'co drugi takt cisza']],
   },
+  improv: {
+    // improv.js: the left-hand ladder and the right-hand rules are the rungs themselves
+    lewa: LH.map((s) => [s.from, s.name.toLowerCase()]),
+    prawa: RH.map((s) => [s.from, s.name.toLowerCase()]),
+  },
 };
 
 /** Tempo said next to the rung, where the level sets it. */
@@ -52,8 +59,9 @@ const TEMPO = {
   echo: (ax) => `${Math.round(66 + ax.rytm * 4)} BPM`,
   docelowe: (ax) => `${Math.round(Math.min(160, 72 + ax.docelowe * 7))} BPM`,
   aksak: (ax) => `${Math.round(60 / Math.max(0.12, 0.3 - ax.puls * 0.014))} ósemek/min`,
+  improv: (ax) => `${Math.round(Math.min(104, 58 + 2.6 * Math.min(ax.lewa, ax.prawa)))} BPM`,
 };
-const TEMPO_AXIS = { echo: 'rytm', docelowe: 'docelowe', aksak: 'puls' };
+const TEMPO_AXIS = { echo: 'rytm', docelowe: 'docelowe', aksak: 'puls', improv: 'lewa' };
 
 /**
  * {now: [{axis, label, text, level}], next: {label, text} | null}

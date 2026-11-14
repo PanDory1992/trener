@@ -1,6 +1,6 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.13.1** (14.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.14** (14.11.2026).
 
 **Stan: zamrożenie funkcji** (decyzja Mikiego 10.11). Nie dodajemy funkcji bez wyraźnej prośby. Dozwolone: poprawki błędów, dokumentacja, testy.
 
@@ -107,6 +107,11 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
     - Echo: „Najpierw zaśpiewaj” (`opt.sing`), „Tempo 90% granicy” (`opt.tempo90`); Ze słuchu: „Najpierw zaśpiewaj”; Plan dnia: panel „Zimny start” (`coldPanel`).
 - `progbank.js` (1.12, test `progbank.test.js`): **bank 76 prawdziwych progresji** dla Siłowni (cyfry rzymskie względem gamy durowej toniki: `parseRoman`, slash `/3`, `/b7`; rodziny `FAMILIES`, `tier` 1–8, `about`). `bankChords` (pisownia jak cyfra: ♭II = E♭ w D), `bankWeight` (rdzeń wokół poziomu ×3, powtórka ×1, o jeden wyżej ×0,7, ostatnie 12 ×0,05, nigdy grane ×1,5), `nextSet` (zestaw: do 3 progresji z jednej rodziny, od najprostszej, jedna tonacja, molowe w paralelnej; następny: inna rodzina, tonacja ±kwinta), `bankStyle` (trójdźwięki: dowolny / pryma w basie; septymowe od 7: shell, od 9: bez prymy). W `music.js` nowe rodzaje `CHORDS` (6, m6, °7, +, sus4, sus2, 7sus4, z `roles`), `checkChord(..., bassPc)` i `referenceVoicing(..., bassPc)` dla akordów z kreską. Siłownia: `Wybór` = Prawdziwe progresje (domyślnie, `rec.pick`), Ćwiczenia (stare `chordGymPlan`), Sam wybieram; stan w `rec.realSet`, `rec.realSeen`, `rec.realRecent`.
 - `inversions.js` (1.13, test `inversions.test.js`): `invVoicing` (akord w przewrocie, układ skupiony), `invSymbol` (C/E), `bottomWord`, `closestInversions` (każdy akord w przewrocie najbliżej poprzedniego), `invPlan` / `INV_STAGES` (tryb Siłowni „Przewroty”: 8 etapów od Wspinaczki do jazzu, własny poziom `rec.invLevel` przez `stepLevel`; próby idą do serii jako `{przewroty: wynik}`, nie ruszają osi `akordy`). W `progbank.js`: rodzina `podstawy` (akordy gamy, kadencje, krótkie pętle), `secondPass` (każda progresja do 6 akordów dwa razy: `same` / `closer` = przewroty najbliżej, od poziomu 3 / `sevenths` = `withSevenths`, od 4), `PASS_SAY`. Siłownia: pole „Dowolny przewrót” (`rec.anyInv`, domyślnie włączone: `rootBass` → `any`, shell z `checkChord(..., {freeBass})`), linia „Na dole: X” dla każdego akordu z wymaganym basem, `c.voicing` (gotowy układ) dla podpowiedzi i Posłuchaj.
+- `improv.js` (1.14, test `improv.test.js`, e2e `e2e_improv.py`): **Improwizacja**. Osie `lewa` i `prawa` (`AXES.improv`, drabinki w `ladders.js` biorą nazwy wprost z `LH` / `RH`).
+  - `LH`: 6 wzorów lewej (burdon w puls, bas na 1 i 3, pompa, bas i akord, rozłożony ósemkami, przedtakt) jako sloty `[uderzenie, R/5/C/N]`; `RH`: 8 zasad prawej (jeden dźwięk, trzy dźwięki, pytanie i odpowiedź, pentatonika, motyw, start „na i”, niebieska nuta, tercja na „raz”) z zestawem dźwięków (`SETS`) i siatką;
+  - `improvPlan` (pętla z `PROGRESSIONS` wg poziomu, tonacje od C/a, tempo 58 + 2,6 · niższa oś, do 5 trójdźwięki), `easierImprov`, `improvRound` (odliczanie + `jamCycle` z `role: 'wszystko'` = sama perkusja, 8 taktów, akord każdego taktu), `lhSlots`, `allowedRH`, `clusters`, `lhDemo` („Posłuchaj lewej”);
+  - `gradeImprov`: ręce rozdzielone na `SPLIT` = 60 (środkowe C); lewa = sloty trafione w czasie i dźwięku (pół punktu za sam czas), prawa = 35% dźwięki rundy + 35% w siatce + 30% zadanie; rada: najpierw „lewa stanęła”; dodatkowo rozjazd rąk (ms), stosunek swingu ósemek, przestrzeń, gęstość, dryf lewej.
+  - Tryb `modes/improv.js`: plansza obu rąk, bieżący akord i takty, klawisze (prawa: dźwięki rundy, lewa: R/5), mapa czasu obu rąk, seria, zimny start, pętla błędu (`Coach`; „Łatwiej” obniża słabszą rękę). `stopRun()` zwraca `bus.stop()` i nowa runda czeka na nie (inaczej stop mógł uciąć nowe granie).
 - `pedalcoach.js` (13.11): przy każdej zmianie harmonii ocenia pedał: `good` (zmieniony zaraz po akordzie), `blur` (trzymany przez zmianę), `early` (puszczony za wcześnie). Werdykt na chwilę w „Co ja gram?”, licznik dnia `days[d].pedal_*`, panel „Pedał dziś” w Planie dnia.
 
 **Zespół**
@@ -129,7 +134,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 - `piosenki.js`: Piosenki: „Zespół gra ze mną” (Perkusja i bas / Cały zespół, styl zapamiętany dla piosenki w `meta[id].style`, ▶ Ta część / ▶ Cała piosenka, świeci grający akord) i przejście „Zagraj z zespołem / edytuj w Jamie”.
 - `guide.js`: Graj ze mną.
 - `palce.js`: Ćwiczenia → Palce.
-- `echo`, `dynamika`, `akordy` (Siłownia), `docelowe`, `ucho`, `aksak`, `fiszki`, `wolne`.
+- `echo`, `dynamika`, `akordy` (Siłownia), `docelowe`, `ucho`, `aksak`, `improv` (Improwizacja), `fiszki`, `wolne`.
 
 **Serwer:** `trener_serwer.py`:
 - GET `/`, `/api/events` (SSE), `/api/now`, `/api/data`, `/api/insights`, `/api/week`, `/api/phone`;
@@ -151,9 +156,9 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, 169 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 179 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
-- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
+- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill, improv. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
 ## Wdrożenie (z chmury na PC)
 
@@ -188,6 +193,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.14 | 14.11 | Nowy tryb **Improwizacja** (prośba Mikiego): lewa jest basem z drabinką 6 wzorów, prawa improwizuje według jednej z 8 zasad, zespół gra pętlę (sama perkusja); osobne poziomy rąk, mapa czasu, rozjazd rąk, swing, przestrzeń, dryf lewej. |
 | 1.13.1 | 14.11 | Siłownia: poziom zmienia się raz na całą progresję (oba przebiegi), nie po każdym akordzie (`roundResult` w `drill.js`: średnia, zaliczona tylko gdy każdy akord, rada najsłabszego). Seria = 10 progresji. Pominięty akord = 0. |
 | 1.13 | 14.11 | Siłownia: tryb Przewroty (8 etapów, własny poziom), Dowolny przewrót (domyślnie), każda progresja dwa razy (tak samo, w przewrotach albo z septymami), 14 nowych podstawowych progresji (rodzina Podstawy), czytelne „Na dole: X” przy akordach z kreską. |
 | 1.12 | 14.11 | Siłownia akordów: Prawdziwe progresje (62, w 10 rodzinach, zestawy w jednej tonacji, dobór do poziomu z powtórkami i nowościami), akordy z kreską, nowe rodzaje akordów (6, m6, °7, +, sus). |

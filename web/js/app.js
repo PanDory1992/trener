@@ -10,6 +10,7 @@ import * as akordy from './modes/akordy.js';
 import * as docelowe from './modes/docelowe.js';
 import * as ucho from './modes/ucho.js';
 import * as aksak from './modes/aksak.js';
+import * as improv from './modes/improv.js';
 import * as fiszki from './modes/fiszki.js';
 import * as wolne from './modes/wolne.js';
 import * as kolo from './modes/kolo.js';
@@ -30,9 +31,9 @@ import { createPedalCoach, VERDICT_TEXT } from './pedalcoach.js';
 import { measureLatency } from './modes/common.js';
 import { coldTrend } from './drill.js';
 
-const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, fiszki, wolne, kolo, jam, piosenki, palce };
+const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, improv, fiszki, wolne, kolo, jam, piosenki, palce };
 const MAIN = ['kolo', 'piosenki', 'jam'];
-const NAV = ['palce', 'echo', 'dynamika', 'akordy', 'docelowe', 'ucho', 'aksak', 'fiszki'];
+const NAV = ['palce', 'echo', 'dynamika', 'akordy', 'docelowe', 'ucho', 'aksak', 'improv', 'fiszki'];
 const ZOOM = { kolo: [36, 84], jam: [36, 84], piosenki: [36, 84], palce: [36, 84] };
 // iPhone and other small screens: fewer octaves so the keys stay readable
 const ZOOM_COMPACT = { kolo: [41, 84], jam: [36, 84], piosenki: [41, 84], palce: [36, 84] };
@@ -330,7 +331,7 @@ function seriesPanel() {
 /** Cold start (1.11): the first attempt of the day per exercise against the days before. */
 function coldPanel() {
   const today = store.today();
-  const rows = ['echo', 'dynamika', 'akordy', 'docelowe', 'ucho', 'aksak'].map((id) => {
+  const rows = ['echo', 'dynamika', 'akordy', 'docelowe', 'ucho', 'aksak', 'improv'].map((id) => {
     const c = coldTrend(store.mode(id).cold, today);
     return c.days.length ? { id, c } : null;
   }).filter(Boolean);

@@ -76,7 +76,7 @@ export const SCALES = {
   blues: { name: 'bluesowa', short: 'blues', deg: [[1, 0], [3, -1], [4, 0], [5, -1], [5, 0], [7, -1]] },
   dorycka: { name: 'dorycka', short: 'dorycka', deg: [[1, 0], [2, 0], [3, -1], [4, 0], [5, 0], [6, 0], [7, -1]] },
   miksolidyjska: { name: 'miksolidyjska', short: 'miksolid.', deg: [[1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, -1]] },
-  hidzaz: { name: 'hidżaz (bałkańska)', short: 'hidżaz', color: true, deg: [[1, 0], [2, -1], [3, 0], [4, 0], [5, 0], [6, -1], [7, -1]] },
+  hidzaz: { name: 'frygijska dominantowa (hidżaz, flamenco)', short: 'fryg. dom.', color: true, deg: [[1, 0], [2, -1], [3, 0], [4, 0], [5, 0], [6, -1], [7, -1]] },
   wegierska: { name: 'węgierska molowa', short: 'węgierska', color: true, deg: [[1, 0], [2, 0], [3, -1], [4, 1], [5, 0], [6, -1], [7, 0]] },
   podwojna: { name: 'podwójnie harmoniczna', short: 'podw. harm.', color: true, deg: [[1, 0], [2, -1], [3, 0], [4, 0], [5, 0], [6, -1], [7, 0]] },
   // modes of the major scale (jońska = dur, eolska = moll)
@@ -250,7 +250,7 @@ export const PROGRESSIONS = [
   { id: 'neosoul', mode: 'major', name: 'Neo-soulowe zejście', mood: 'miękko, nocnie', jazz: true, ninths: true, steps: [[4, 0, 'maj'], [3, 0, 'min'], [2, 0, 'min'], [1, 0, 'maj']],
     why: 'Akordy schodzą stopień po stopniu: 4, 3, 2, 1. Z dodaną noną brzmią „mgliście”. Palce przesuwają się w dół jak po schodach.' },
   { id: 'andaluzyjska', mode: 'minor', name: 'Kadencja andaluzyjska', mood: 'dramatycznie, flamenco', steps: [[1, 0, 'min'], [7, -1, 'maj'], [6, -1, 'maj'], [5, 0, 'maj']],
-    why: 'Bas schodzi czterema stopniami w dół: 1, ♭7, ♭6, 5. Dur na 5 (z gamy harmonicznej) daje napięcie, które aż prosi o powrót do 1m. Słychać ją od Hiszpanii po Bałkany.' },
+    why: 'Bas schodzi czterema stopniami w dół: 1, ♭7, ♭6, 5. Dur na 5 (z gamy harmonicznej) daje napięcie, które aż prosi o powrót do 1m. Słychać ją od Hiszpanii po Bałkany. Na ostatnim, durowym akordzie pasuje frygijska dominantowa od jego dźwięku: to ta sama skala co w gamie harmonicznej, tylko zaczęta od 5. stopnia.' },
   { id: 'mollPop', mode: 'minor', name: 'Molowy pop', mood: 'epicko, smutno', steps: [[1, 0, 'min'], [6, -1, 'maj'], [3, -1, 'maj'], [7, -1, 'maj']],
     why: 'To pop-hymn czytany od molowego dźwięku: ten sam zestaw akordów, tylko domem jest 1m. Dlatego brzmi jak jego smutna, filmowa wersja.' },
   { id: 'mollPodstawa', mode: 'minor', name: 'Molowa podstawa 1–4–5', mood: 'klasycznie, poważnie', steps: [[1, 0, 'min'], [4, 0, 'min'], [5, 0, 'maj'], [1, 0, 'min']],
@@ -437,7 +437,7 @@ export function whyScale(key, scaleId) {
     blues: 'Molowa pentatonika plus jeden „brudny” dźwięk: ♭5, półton między 4 a 5. Przechodzi się przez niego, nie zatrzymuje. To on daje bluesowy jęk.',
     dorycka: 'Molowa z podwyższonym 6. stopniem. Ten jeden jaśniejszy dźwięk robi różnicę: smutno, ale z nadzieją. Brzmienie funku, soulu i modalnego jazzu.',
     miksolidyjska: 'Durowa z obniżonym 7. stopniem. Brzmi jak dur, ale luźniej, rockowo i bluesowo: brak „ciągu” do domu, który daje 7. stopień.',
-    hidzaz: 'Kolor z Bałkanów i Bliskiego Wschodu: obniżona 2 i durowa 3 dają skok o półtora tonu tuż przy tonice. Brzmi egzotycznie i tęsknie.',
+    hidzaz: 'Frygijska dominantowa: obniżona 2, durowa 3 i obniżona 6. Półton nad tonicą i skok o półtora tonu zaraz za nim to brzmienie flamenco, a na Bałkanach i Bliskim Wschodzie nazywa się hidżaz. Gra się ją nad durowym akordem na 1, nie nad molowym. To 5. tryb molowej harmonicznej.',
     wegierska: 'Molowa harmoniczna z podwyższonym 4. stopniem: dwa „orientalne” skoki w jednej skali. Brzmienie muzyki węgierskiej i cygańskiej.',
     podwojna: 'Dwa skoki o półtora tonu, symetrycznie wokół toniki i dominanty. Najbardziej „egzotyczna” z popularnych skal.',
     frygijska: 'Molowa z obniżonym 2. stopniem. Półton tuż nad toniką brzmi ciemno i hiszpańsko: flamenco, metal, muzyka filmowa.',
@@ -461,7 +461,9 @@ export function whyScale(key, scaleId) {
   // a mode is a major scale played from another degree: say which one
   const parent = { dorycka: [7, -1], frygijska: [6, -1], lidyjska: [5, 0], miksolidyjska: [4, 0], lokrycka: [2, -1] }[scaleId];
   const rel = parent ? ` Te same dźwięki co ${degreeOf(key, parent[0], parent[1]).name}-dur, tylko domem jest ${spellName(key.li, key.acc)}.` : '';
-  return `${t[scaleId] || ''}${rel} (${k})`;
+  // the 5th mode of the harmonic minor: the harmonic minor sits a fourth above the tonic
+  const relHarm = scaleId === 'hidzaz' ? ` Te same dźwięki co ${degreeOf(key, 4, 0).name}-moll harmoniczna, tylko domem jest ${spellName(key.li, key.acc)}.` : '';
+  return `${t[scaleId] || ''}${rel}${relHarm} (${k})`;
 }
 
 export function whyFamily(key) {

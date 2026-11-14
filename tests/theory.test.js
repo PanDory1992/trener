@@ -146,6 +146,11 @@ test('all scales in all keys: ascending, right pitch classes, a "why", groups kn
   assert.equal(T.scaleNotes(C, 'lidyjska').map((x) => x.name).join(' '), 'C D E F♯ G A B C');
   assert.equal(T.scaleNotes(T.keyAt(0, 'minor'), 'frygijska').map((x) => x.name).join(' '), 'A B♭ C D E F G A');
   assert.match(T.whyScale(T.makeKey('D', 0, 'minor'), 'dorycka'), /C-dur, tylko domem jest D/);
+  // frygijska dominantowa (flamenco): G Ab B C D Eb F G = 5th mode of C harmonic minor
+  const G = T.makeKey('G', 0, 'major');
+  assert.equal(T.scaleNotes(G, 'hidzaz').map((x) => x.name).join(' '), 'G A♭ B C D E♭ F G');
+  assert.match(T.whyScale(G, 'hidzaz'), /C-moll harmoniczna, tylko domem jest G/);
+  assert.match(T.SCALES.hidzaz.name, /flamenco/);
   assert.equal(T.keyName(T.keyByTonic(1, 'major')), 'D♭');
 });
 

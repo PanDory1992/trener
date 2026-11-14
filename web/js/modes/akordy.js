@@ -2,7 +2,8 @@
 import * as bus from '../bus.js';
 import { checkChord, chordGymPlan, chordPcs, CHORDS, movement, pcName, progressionChords, PROGRESSIONS, referenceVoicing, roleIn, VOICING_STYLES } from '../music.js';
 import * as store from '../store.js';
-import { el, levelHeader, refreshLevel, status, fill, add } from '../ui.js';
+import { el, status, fill, add } from '../ui.js';
+import { createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
 import { Looper, playEvents, seed } from './common.js';
 
 export const id = 'akordy';
@@ -28,25 +29,30 @@ export function mount(stage, ctx) {
   let wrongShown = false;
   let wrongPending = false;
   let wrongTimer = null;
+  let hintUsed = false;
+  let lastWrong = '';
 
-  const head = card ? el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, card.title), el('p', { class: 'mode-sub' }, 'Fiszka: zagraj akordy.')))
-    : levelHeader(id, 'Siłownia akordów', 'Pokazuję akord, ty go grasz. Liczy się, czy są właściwe dźwięki, i jak mało ruszyłeś palcami od poprzedniego akordu.');
-  const controls = el('div', { class: 'controls' });
+  const drill = card ? null : createDrill(id, {
+    title: 'Siłownia akordów',
+    about: 'Pokazuję akord, ty go grasz. Liczy się, czy są właściwe dźwięki za pierwszym razem, jak szybko je znajdziesz i jak mało ruszysz palcami od poprzedniego akordu. Szare kropki na klawiszach to twój poprzedni akord: szukaj najbliższego układu.',
+  });
+  const head = card ? el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, card.title), el('p', { class: 'mode-sub' }, 'Fiszka: zagraj akordy.'))) : drill.head;
+  const controls = el('div', { class: 'drill-opts' });
   const board = el('div', { class: 'chord-board' });
   const line = el('div', { class: 'status-wrap' }, status('Naciśnij Start albo C56.'));
   const stats = el('div', { class: 'chord-stats' });
-  const actions = el('div', { class: 'actions' },
-    el('button', { class: 'btn primary', onclick: () => start() }, 'Start'),
-    el('button', { class: 'btn', onclick: () => listen() }, 'Posłuchaj tego akordu'),
-    el('button', { class: 'btn ghost', onclick: () => playProgression() }, 'Zagraj całą progresję'),
-    card ? null : el('button', { class: 'btn ghost', onclick: () => addCard() }, 'Dodaj do fiszek'));
-  add(stage, head, card ? null : controls, board, line, stats);
-  ctx.dock(actions);
+  const summaryBox = el('div', { class: 'result' });
+  const dock = drillDock({
+    primary: 'Start', onPrimary: () => (started ? skip() : start()), onRepeat: () => listen(), repeatLabel: 'Posłuchaj', onHint: () => hint(),
+    more: [['Zagraj całą progresję', () => playProgression()], card ? null : ['Dodaj do fiszek', () => addCard()]],
+  });
+  add(stage, head, card ? null : controls, board, line, stats, summaryBox);
+  ctx.dock(dock.node);
 
-  const setStatus = (t, k = '') => fill(line, status(t, k));
+  const setStatus = (t, k = '', tip = null) => verdict(line, t, k, tip);
 
   function renderControls() {
-    const sel = (label, value, options, onchange) => el('label', { class: 'field' }, el('span', {}, label),
+    const sel = (label, value, options, onchange) => el('label', {}, label,
       el('select', { onchange: (e) => onchange(e.target.value) }, options.map(([v, t]) => el('option', { value: v, selected: v === value }, t))));
     fill(controls, 
       sel('Wybór', manual ? 'manual' : 'auto', [['auto', 'Automatycznie (wg poziomu)'], ['manual', 'Sam wybieram']], (v) => {
@@ -79,16 +85,27 @@ export function mount(stage, ctx) {
       el('div', { class: 'chord-strip' }, chords.map((x, k) => el('span', { class: `cs ${k < i ? 'done' : ''} ${k === i ? 'now' : ''}` }, x.symbol))),
       el('p', { class: 'style-help' }, style.help));
     tries = 0;
+    hintUsed = false;
     wrongShown = false;
     wrongPending = false;
     shownAt = performance.now();
-    ctx.keyboard.mark([]);
+    // where your hand is now: the previous chord, faint; the nearest voicing of the new one is close to it
+    ctx.keyboard.mark(prevVoicing ? prevVoicing.map((n) => ({ note: n, text: '·', tone: 'var(--ink-3)' })) : []);
   }
 
   function start() {
     started = true;
+    fill(summaryBox);
     newRound();
+    dock.setPrimary('Następny akord');
     setStatus('Zagraj akord i trzymaj chwilę.', 'turn');
+  }
+
+  function skip() {
+    fill(summaryBox);
+    i = Math.min(i + 1, chords.length - 1);
+    renderBoard();
+    setStatus('Pominięty. Zagraj następny.', 'turn');
   }
 
   function evaluate() {
@@ -109,17 +126,27 @@ export function mount(stage, ctx) {
       const move = movement(prevVoicing, notes);
       const secs = (performance.now() - shownAt) / 1000;
       times.push({ secs, move, first: tries === 0 });
-      const passed = tries === 0;
+      const passed = tries === 0 && !hintUsed;
+      // score: right the first time, minus time over 3 s; a second try 50, later 25; with a hint at most 40
+      let score = tries === 0 ? Math.max(60, Math.round(100 - Math.max(0, secs - 3) * 8)) : tries === 1 ? 50 : 25;
+      if (hintUsed) score = Math.min(score, 40);
+      const moveWord = move === null ? '' : `ruch palców ${move} ${move === 1 ? 'półton' : move < 5 ? 'półtony' : 'półtonów'}`;
+      const tip = hintUsed && tries === 0 ? { kind: 'hint', text: `${c.symbol} z podpowiedzią: najwyżej 40 punktów. Następny spróbuj najpierw sam.` }
+        : tries > 0 && lastWrong ? { kind: 'wrong', text: `${c.symbol}: ${lastWrong}. Za drugim razem się udało.` }
+        : secs > 5 ? { kind: 'slow', text: `${c.symbol}: ${secs.toFixed(1).replace('.', ',')} s. Zanim zagrasz, nazwij w myślach tercję.` }
+          : move !== null && move > 8 ? { kind: 'move', text: `Duży skok ręki (${moveWord}). Szukaj układu najbliżej poprzedniego akordu.` }
+            : { kind: null, text: move === null ? `${secs.toFixed(1).replace('.', ',')} s.` : `${secs.toFixed(1).replace('.', ',')} s, ${moveWord}${move <= 4 ? ', bardzo gładko' : ''}.` };
+      let r = null;
       if (card) {
         // a card passes when every chord of the progression is right the first time
         card._fails = (card._fails || 0) + (passed ? 0 : 1);
       } else {
-        store.record(id, passed);
-        refreshLevel(stage, id);
+        r = drill.counted({ akordy: score }, passed, tip);
       }
       prevVoicing = notes;
-      setStatus(move === null ? 'Dobrze!' : `Dobrze! Ruch palców: ${move} ${move === 1 ? 'półton' : move < 5 ? 'półtony' : 'półtonów'}${move <= 4 ? ', bardzo gładko' : ''}.`, 'good');
+      setStatus(passed ? 'Dobrze!' : 'Jest.', 'good', tip);
       renderStats();
+      if (r && r.summary) fill(summaryBox, seriesCard(r.summary, drill.labels, () => { fill(summaryBox); }));
       setTimeout(() => {
         if (!alive) return;
         i++;
@@ -145,7 +172,8 @@ export function mount(stage, ctx) {
       if (res.missing.length) bits.push(`brakuje: ${res.missing.map((pc) => pcName(pc, flat)).join(', ')}`);
       if (res.wrong.length) bits.push(`nie pasuje: ${res.wrong.map((pc) => pcName(pc, flat)).join(', ')}`);
       if (!res.bassOk) bits.push(`na dole ma być ${pcName(c.rootPc, flat)}`);
-      setStatus(`Jeszcze nie: ${bits.join('; ')}. Puść i spróbuj jeszcze raz.`, 'bad');
+      lastWrong = bits.join('; ');
+      setStatus(`Jeszcze nie: ${lastWrong}.`, 'bad', { kind: 'wrong', text: 'Puść klawisze i spróbuj jeszcze raz.' });
     }
   }
 
@@ -165,14 +193,14 @@ export function mount(stage, ctx) {
     const c = chords[i];
     const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing);
     ctx.keyboard.mark(v.map((n) => ({ note: n, text: roleIn(n % 12, c.rootPc, c.type), tone: ROLE_TONE[roleIn(n % 12, c.rootPc, c.type)] })));
-    tries = Math.max(tries, 1);
+    hintUsed = true;
   }
 
   function listen() {
     if (!chords.length) newRound();
     const c = chords[i];
     const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing);
-    tries = Math.max(tries, 1);
+    hintUsed = true;
     looper.start(v.flatMap((n) => [{ t: 0, m: [0x90, n, 64] }, { t: 1.4, m: [0x80, n, 0] }]), 1.4, { lead: 0.1, gap: 0.8 }).catch(() => {});
   }
 
@@ -219,7 +247,7 @@ export function mount(stage, ctx) {
       stableTimer = setTimeout(evaluate, STABLE_MS);
     },
     onPilot(a) {
-      if (a === 'start') started ? (i = Math.min(i + 1, chords.length - 1), renderBoard()) : start();
+      if (a === 'start') started ? skip() : start();
       if (a === 'repeat') listen();
       if (a === 'hint') hint();
       if (a === 'pause') { looper.stop(); bus.stop(); setStatus('Pauza.'); }

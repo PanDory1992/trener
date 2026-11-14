@@ -1,6 +1,7 @@
 // Progress, settings and cards, saved on disk by the server (trener-dane.json).
 import { api, getJSON, saveData } from './bus.js';
 import { nextLevel, prefs } from './music.js';
+import { applyScores, axesOf } from './drill.js';
 import { setClick } from './click.js';
 
 export const MODES = {
@@ -132,6 +133,26 @@ export function record(id, passed, { adjust = true } = {}) {
   day.ok = (day.ok || 0) + (passed ? 1 : 0);
   save();
   return { before, after: m.level };
+}
+
+/** The exercise's difficulty axes (1.10); an old record starts every axis at its one level. */
+export function axes(id, names) { return axesOf(mode(id), names); }
+
+/** One counted attempt with a score per axis (0–100, null = not tested). Returns {before, after, levelBefore, levelAfter}. */
+export function recordScores(id, names, scores, passed) {
+  const r = applyScores(mode(id), names, scores, passed, today());
+  const day = dayRec();
+  day.tries = (day.tries || 0) + 1;
+  day.ok = (day.ok || 0) + (passed ? 1 : 0);
+  save();
+  return r;
+}
+
+/** A finished series, for Plan dnia. */
+export function logSeries(id, sum) {
+  const day = dayRec();
+  day.series = [...(day.series || []), { id, n: sum.n, ok: sum.ok, avg: sum.avg, at: Date.now() }].slice(-40);
+  save();
 }
 
 export function successRate(id, n = 20) {

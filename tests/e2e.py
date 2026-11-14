@@ -144,11 +144,15 @@ def main():
                               ("Atkinson Hyperlegible", "fontsource-atkinson-hyperlegible-5.1.0/package/files/atkinson-hyperlegible-latin-400-normal.woff2", "400"),
                               ("Atkinson Hyperlegible", "fontsource-atkinson-hyperlegible-5.1.0/package/files/atkinson-hyperlegible-latin-ext-700-normal.woff2", "700"),
                               ("Atkinson Hyperlegible", "fontsource-atkinson-hyperlegible-5.1.0/package/files/atkinson-hyperlegible-latin-700-normal.woff2", "700")]:
-                css += f"@font-face{{font-family:'{fam}';font-weight:{w};src:url(https://fonts.gstatic.com/local/{f})}}\n"
+                if (FONTS / f).exists():
+                    css += f"@font-face{{font-family:'{fam}';font-weight:{w};src:url(https://fonts.gstatic.com/local/{f})}}\n"
             route.fulfill(body=css, content_type="text/css")
         else:
-            rel = url.split("/local/", 1)[1]
-            route.fulfill(body=(FONTS / rel).read_bytes(), content_type="font/woff2")
+            rel = url.split("/local/", 1)[1] if "/local/" in url else ""
+            if rel and (FONTS / rel).exists():
+                route.fulfill(body=(FONTS / rel).read_bytes(), content_type="font/woff2")
+            else:
+                route.fulfill(status=404, body="")
 
     page = None
     try:
@@ -258,9 +262,10 @@ def main():
                 page.wait_for_timeout(300)
                 page.screenshot(path=str(shots / "02-echo-result.png"))
                 print("echo status:", page.inner_text(".status"))
+                page.locator(".drill-more > summary").click()
                 page.get_by_role("button", name="Dodaj do fiszek", exact=True).click()
                 page.wait_for_timeout(5000)  # auto next + another round
-                print("echo level:", page.inner_text(".level-num"))
+                print("echo level:", page.inner_text(".dl-meta"))
 
                 # Dynamics
                 user.set("echo")
@@ -276,7 +281,7 @@ def main():
                 page.click("nav >> text=Siłownia akordów")
                 page.get_by_role("button", name="Start", exact=True).click()
                 page.wait_for_timeout(400)
-                page.get_by_role("button", name="Posłuchaj tego akordu", exact=True).click()
+                page.get_by_role("button", name="Posłuchaj", exact=True).click()
                 page.wait_for_timeout(3500)
                 page.screenshot(path=str(shots / "04-akordy.png"))
                 print("chords status:", page.inner_text(".status"))
@@ -284,7 +289,7 @@ def main():
                 # Ear
                 user.set("melody")
                 page.click("nav >> text=Ze słuchu")
-                page.get_by_role("button", name="Nowa melodia", exact=True).click()
+                page.get_by_role("button", name="Start", exact=True).click()
                 page.wait_for_function("document.querySelector('.status').innerText.includes('Znalezione')", timeout=20000)
                 page.wait_for_timeout(600)
                 page.screenshot(path=str(shots / "05-ucho.png"))

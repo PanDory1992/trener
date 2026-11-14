@@ -1,6 +1,6 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.9** (12.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.10** (14.11.2026).
 
 **Stan: zamrożenie funkcji** (decyzja Mikiego 10.11). Nie dodajemy funkcji bez wyraźnej prośby. Dozwolone: poprawki błędów, dokumentacja, testy.
 
@@ -94,6 +94,12 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 - `music.js`: generatory i ocenianie dla starszych trybów.
 - `colors.js`: kolory funkcji T/S/D.
 - `fingers.js`, `scaledetect.js`, `smartloop.js`, `mastery.js` („umiem”, powtórki), `feedback.js`, `suggest.js` (kostka, podpowiedzi).
+- **Ćwiczenia (1.10): wspólny szkielet** dla Echa, Echa dynamiki, Siłowni, Nut docelowych, Ze słuchu i Aksaka:
+  - `drill.js` (czysty, testy `drill.test.js`): `stepLevel` (krok poziomu proporcjonalny do wyniku 0–100, próg `PASS` 80), `axesOf` / `applyScores` (osie trudności; stary jeden poziom = start wszystkich osi), `Coach` (pętla błędu: ten sam → łatwiej → całość → dalej; nieudany wraca po 4 innych, raz), `Series` (10 prób, podsumowanie, najczęstsza rada), `rung`;
+  - `ladders.js`: osie (`AXES`: echo melodia/rytm/dynamika, aksak metrum/puls, reszta jedna) i drabinki „Teraz / Dalej” zgodne z progami generatorów w `music.js` (test `ladders.test.js`);
+  - `drillui.js`: `createDrill` (nagłówek z „Jak to działa” rozwiniętym tylko za pierwszym razem, `settings.seenAbout`; ramka Teraz/Dalej, poziom, seria n/10; `counted()` zapisuje próbę przez `store.recordScores` i kończy serię `store.logSeries` → `days[d].series`), `verdict` (duży werdykt + jedna rada `.drill-tip`), `drillDock` (Start/Następne · Jeszcze raz · Podpowiedź · ⋯), `seriesCard`;
+  - generatory przyjmują osie: `echoMotif(axes, seed, {focus, hand})`, `aksakPlan(axes)`, `earMelody(level, seed, {leapBias})`; oceny zwracają `scores` i `tip` `{kind, text, mark?}` (`gradeEcho`, `gradeDynamics`, `gradeAksak` z `drift`); `easierMotif`, `easierAksak`;
+  - Echo dynamiki: tolerancje pod Keystation, czarny klawisz z surowym 1 nie jest oceniany; Nuty docelowe odejmują `settings.latencyMs`; pomiar opóźnienia jest w Ustawieniach (`measureLatency` w `modes/common.js`).
 - `pedalcoach.js` (13.11): przy każdej zmianie harmonii ocenia pedał: `good` (zmieniony zaraz po akordzie), `blur` (trzymany przez zmianę), `early` (puszczony za wcześnie). Werdykt na chwilę w „Co ja gram?”, licznik dnia `days[d].pedal_*`, panel „Pedał dziś” w Planie dnia.
 
 **Zespół**
@@ -138,9 +144,9 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, 130 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 147 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
-- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
+- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
 ## Wdrożenie (z chmury na PC)
 
@@ -175,6 +181,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.10 | 14.11 | Ćwiczenia na wspólnym szkielecie: punkty 0–100, osie trudności, pętla błędu i powroty, jedna rada pod werdyktem, serie 10 prób z podsumowaniem (Plan dnia: „Serie dziś”), Teraz/Dalej, jednakowe przyciski; Echo: ręka i fokus; Echo dynamiki: tolerancje Keystation i podgląd na żywo; Siłownia: czas reakcji w wyniku, poprzedni akord na klawiszach; Nuty docelowe: dźwięki akordu na klawiszach, wynik na akord; Ze słuchu: podpowiedź interwałem, więcej trudnych interwałów; Aksak: wykres tempa; pomiar opóźnienia w Ustawieniach. Plan: `claude/trener-cwiczenia-plan.md` (etap 2 czeka). |
 | 1.9 | 13.11 | Pasek grania nad klawiaturą (wariant B z `claude/trener-ui-plan.md`): przyciski grania zawsze widoczne w jednym miejscu. Jam: style z listy zamiast 34 kart, rzadkie ustawienia zwinięte, „Dlaczego?” zwinięte. Piosenki: jeden wybór „Kto gra”, akompaniament podglądu zwinięty, krótsza lista piosenek. |
 | 1.8.2 | 12.11 | Piosenki: zespół gra piosenkę od razu (perkusja i bas albo cały zespół), bez przechodzenia do Jamu. Style w grupach przeniesione do `grooves.js` (`GROOVE_GROUPS`). |
 | 1.8.1 | 12.11 | Trener nie gra już na kanale 1: wszystko z pianina idzie na kanał 3 (prośba Mikiego: nuty Trenera biły się z jego grą). W Jamie zniknęło pole „Klawisze zespołu osobno”. Serwer bez zmian (`VERSION` dalej 1.8). |

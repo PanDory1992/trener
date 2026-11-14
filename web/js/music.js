@@ -91,13 +91,24 @@ const RHYTHMS = {
   sync: [[1], [0.5, 0.5], [1.5, 0.5], [0.5, 1, 0.5], [0.75, 0.25]],
 };
 
+const clampL = (x) => Math.max(1, Math.min(12, Number(x) || 1));
+
 /**
- * Motif for the echo trainer. level 1..12.
- * opts.preferBlack: pick keys whose scales live on black keys (practising quiet black keys).
+ * Motif for the echo trainer. level: 1..12, or the axes {melodia, rytm, dynamika} (since 1.10).
+ *   melodia: scale, pool of notes, length, leaps;  rytm: rhythms and tempo;  dynamika: the loudness shapes.
+ * opts.preferBlack: keys whose scales live on black keys (practising quiet black keys).
+ * opts.focus: 'all' | 'melodia' | 'rytm' | 'dynamika': the other axes stay easy, only this one is tested.
+ * opts.hand: 'right' (around middle C) | 'left' (an octave lower).
  */
 export function echoMotif(level, seed, opts = {}) {
   const r = rng(seed);
-  const L = Math.max(1, Math.min(12, level));
+  const ax = typeof level === 'object' && level ? level : { melodia: level, rytm: level, dynamika: level };
+  const focus = opts.focus || 'all';
+  let L = clampL(ax.melodia);           // melody
+  let R = clampL(ax.rytm ?? ax.melodia); // rhythm
+  const D = clampL(ax.dynamika ?? ax.melodia);
+  if (focus === 'rytm' || focus === 'dynamika') L = Math.min(L, 3);
+  if (focus === 'melodia' || focus === 'dynamika') R = Math.min(R, focus === 'melodia' ? 1 : 2);
   let scale = 'major';
   let rootPc = 0;
   let pool;
@@ -105,18 +116,18 @@ export function echoMotif(level, seed, opts = {}) {
   else if (L >= 6.5) scale = r.pick(['minor', 'harmonic', 'dorian']);
   if (L >= 4) rootPc = r.pick([0, 2, 5, 7, 9, 10, 3]);
   if (opts.preferBlack) { rootPc = r.pick([6, 1, 3]); scale = L >= 8 ? scale : 'pentaMajor'; }
-  const base = 60 + rootPc - (rootPc > 6 ? 12 : 0);
+  const base = (opts.hand === 'left' ? 48 : 60) + rootPc - (rootPc > 6 ? 12 : 0);
   const all = scaleNotes(rootPc, scale, base, base + 12);
   if (L < 2) pool = [all[0]];
   else if (L < 3.5) pool = all.slice(0, 3);
   else if (L < 5) pool = all.slice(0, 5);
   else pool = all;
   if (opts.preferBlack) pool = all.filter((m) => BLACK.has(m % 12)).slice(0, Math.max(2, pool.length));
-  const length = Math.min(8, 3 + Math.floor(L / 2));
-  const rhythmSet = L < 3 ? RHYTHMS.basic : L < 5 ? RHYTHMS.eighths : L < 7 ? RHYTHMS.dotted : RHYTHMS.sync;
+  const length = Math.min(8, 3 + Math.floor((focus === 'rytm' ? clampL(ax.rytm) : L) / 2));
+  const rhythmSet = R < 3 ? RHYTHMS.basic : R < 5 ? RHYTHMS.eighths : R < 7 ? RHYTHMS.dotted : RHYTHMS.sync;
   const leapChance = L < 4 ? 0 : L < 7 ? 0.2 : 0.35;
-  const withDynamics = L >= 5.5;
-  const tempo = Math.round(66 + L * 4);
+  const withDynamics = focus === 'dynamika' || (focus === 'all' && Math.min(L, R) >= 5.5);
+  const tempo = Math.round(66 + R * 4);
   // durations
   const durs = [];
   while (durs.length < length) for (const d of r.pick(rhythmSet)) if (durs.length < length) durs.push(d);
@@ -134,7 +145,7 @@ export function echoMotif(level, seed, opts = {}) {
     notes.push({ p: pool[idx], dur: durs[i], v: DYN.mf });
   }
   if (withDynamics) {
-    const shapes = ['cresc', 'dim', 'accent1', 'terrace'];
+    const shapes = D < 4 ? ['cresc', 'dim'] : ['cresc', 'dim', 'accent1', 'terrace'];
     const shape = r.pick(shapes);
     const n = notes.length;
     notes.forEach((nt, i) => {
@@ -144,7 +155,13 @@ export function echoMotif(level, seed, opts = {}) {
       else nt.v = i < n / 2 ? DYN.p : DYN.f;
     });
   }
-  return { kind: 'motif', level: L, scale, rootPc, tempo, notes, withDynamics, flat: keyPrefersFlat(rootPc) };
+  const tested = focus === 'all' ? ['melodia', 'rytm', ...(withDynamics ? ['dynamika'] : [])] : [focus];
+  return { kind: 'motif', level: L, scale, rootPc, tempo, notes, withDynamics, flat: keyPrefersFlat(rootPc), focus, hand: opts.hand || 'right', tested };
+}
+
+/** The same motif, easier: slower (the error loop's "simplify" step). */
+export function easierMotif(m) {
+  return { ...m, tempo: Math.max(50, Math.round(m.tempo * 0.8)), easy: true };
 }
 
 /** Times (in beats) at which the notes of a motif start. */
@@ -254,7 +271,45 @@ export function gradeEcho(motif, attempt) {
     dynOk = dyn.ok;
   }
   const passed = pitchOk && rhythmOk && dynOk;
-  return { passed, pitchOk, pitchScore, rhythmOk, rhythmScore, rhythmErr, tempoRatio, devBeats, dynOk, dyn, perNote, extra: extraTotal, skipped: al.skipped, aligned: got };
+  // 0–100 per axis (since 1.10): the level moves in proportion; 80 ≈ the old "ok"
+  const okCount = perNote.filter((x) => x.ok).length;
+  const melodia = Math.max(0, Math.round(100 * (okCount / want.length) ** 2 - 8 * Math.max(0, extraTotal - 1)));
+  const maxDev = devBeats.length ? Math.max(...devBeats.map(Math.abs)) : 0;
+  let rytm = got.length >= 2 ? Math.round(Math.max(0, Math.min(100, 100 - (rhythmErr / 0.12) * 20))) : 0;
+  if (maxDev > 0.3) rytm = Math.min(rytm, 75);
+  if (got.length < want.length) rytm = Math.round(rytm * got.length / want.length);
+  const scores = { melodia, rytm, dynamika: motif.withDynamics ? (dyn ? dyn.score : 0) : null };
+  const res = { passed, pitchOk, pitchScore, rhythmOk, rhythmScore, rhythmErr, tempoRatio, devBeats, dynOk, dyn, perNote, extra: extraTotal, skipped: al.skipped, aligned: got, scores };
+  res.tip = echoTip(motif, res);
+  return res;
+}
+
+const BEAT_WORD = (d) => (d >= 0.4 ? 'o pół uderzenia' : d >= 0.2 ? 'o ćwierć uderzenia' : 'trochę');
+
+/** One concrete piece of advice about the attempt: {kind, text, mark?} (kind null = praise, not counted). */
+export function echoTip(motif, g) {
+  const want = motif.notes;
+  const got = g.aligned;
+  if (got.length < want.length) return { kind: 'count', text: `Zagrałeś ${got.length} z ${want.length} dźwięków. Posłuchaj jeszcze raz do końca.` };
+  const wrong = g.perNote.findIndex((x) => !x.ok);
+  if (wrong >= 0) {
+    const w = g.perNote[wrong];
+    const dir = w.got > w.want ? 'za wysoko' : 'za nisko';
+    return { kind: 'pitch', text: `${wrong + 1}. dźwięk: ${noteName(w.want, motif.flat, false)}, a nie ${noteName(w.got, motif.flat, false)} (${dir}).`, mark: [{ note: w.want, text: String(wrong + 1) }] };
+  }
+  if (!g.rhythmOk) {
+    if (g.tempoRatio > 1.12) return { kind: 'tempo', text: `Grasz o ${Math.round((g.tempoRatio - 1) * 100)}% szybciej niż wzór. Policz w głowie 1, 2 przed startem.` };
+    if (g.tempoRatio < 0.88) return { kind: 'tempo', text: `Grasz o ${Math.round((1 - g.tempoRatio) * 100)}% wolniej niż wzór.` };
+    let k = 0;
+    g.devBeats.forEach((d, i) => { if (Math.abs(d) > Math.abs(g.devBeats[k])) k = i; });
+    const d = g.devBeats[k];
+    return { kind: d < 0 ? 'early' : 'late', text: `${k + 1}. dźwięk ${d < 0 ? 'za wcześnie' : 'za późno'}, ${BEAT_WORD(Math.abs(d))}. Najdłuższe nuty trzymaj do końca.` };
+  }
+  if (motif.withDynamics && !g.dynOk && g.dyn) return { kind: 'dyn', text: g.dyn.tips[0] };
+  // right notes, even rhythm, but in another tempo: not a miss, still worth saying
+  if (g.tempoRatio > 1.12) return { kind: 'tempo', text: `Równo, ale o ${Math.round((g.tempoRatio - 1) * 100)}% szybciej niż wzór.` };
+  if (g.tempoRatio < 0.88) return { kind: 'tempo', text: `Równo, ale o ${Math.round((1 - g.tempoRatio) * 100)}% wolniej niż wzór.` };
+  return { kind: null, text: g.rhythmErr < 0.05 ? 'Równo jak metronom.' : 'Czysto i w rytmie.' };
 }
 
 // --- 6. dynamics -----------------------------------------------------------------------------------
@@ -274,9 +329,9 @@ export function dynamicsPhrase(level, seed) {
   const n = Math.min(12, 6 + Math.floor(L / 2));
   const shapes = L < 3 ? ['cresc', 'dim'] : L < 5 ? ['cresc', 'dim', 'hairpin', 'valley'] : L < 7 ? ['hairpin', 'valley', 'terrace', 'accents'] : ['terrace', 'accents', 'accentCresc', 'hairpin', 'valley'];
   const shape = r.pick(shapes);
-  // narrower range at high levels: finer control
-  const lo = L < 7 ? DYN.p : DYN.mp - 4;
-  const hi = L < 7 ? DYN.f + 6 : DYN.mf + 14;
+  // a bit narrower at high levels (finer control), but never under ~3 of the Keystation's ~9 distinct loudness steps
+  const lo = L < 7 ? DYN.p : DYN.p + 4;
+  const hi = L < 7 ? DYN.f + 6 : DYN.f;
   const rootPc = r.pick([0, 2, 5, 7]);
   const pool = scaleNotes(rootPc, 'major', 60 + rootPc - (rootPc > 6 ? 12 : 0), 72 + rootPc);
   const pattern = r.pick(['up', 'updown', 'repeat']);
@@ -308,9 +363,10 @@ export function gradeDynamicsArrays(target, user) {
   const st = std(t), su = std(u);
   const range = st > 0 ? su / st : 1;
   const flatTarget = st < 3;
-  const shapeOk = flatTarget ? su < 10 : r >= 0.75;
-  const levelOk = Math.abs(levelDiff) <= 18;
-  const rangeOk = flatTarget ? true : range >= 0.55 && range <= 1.7;
+  // tolerances fit the Keystation (since 1.10): it tells apart only ~9 loudness steps (~14 velocity units)
+  const shapeOk = flatTarget ? su < 12 : r >= 0.75;
+  const levelOk = Math.abs(levelDiff) <= 22;
+  const rangeOk = flatTarget ? true : range >= 0.5 && range <= 1.9;
   const ok = shapeOk && levelOk && rangeOk;
   const score = Math.max(0, Math.round(
     (flatTarget ? 60 : 60 * Math.max(0, r)) + 25 * Math.max(0, 1 - Math.abs(levelDiff) / 40) + 15 * Math.max(0, 1 - Math.abs(Math.log(Math.max(range, 0.01)))),
@@ -320,17 +376,28 @@ export function gradeDynamicsArrays(target, user) {
   if (!levelOk) tips.push(levelDiff > 0 ? `Całość o ${Math.round(levelDiff)} za głośno.` : `Całość o ${Math.round(-levelDiff)} za cicho.`);
   if (!rangeOk) tips.push(range < 1 ? 'Różnice między cicho a głośno za małe: odważniej.' : 'Różnice za duże: łagodniej.');
   if (ok) tips.push(r > 0.92 ? 'Kształt prawie idealny.' : 'Dobrze złapany kształt.');
-  return { ok, r, levelDiff, range, score, tips };
+  const tip = !shapeOk ? { kind: 'shape', text: tips[0] }
+    : !levelOk ? { kind: levelDiff > 0 ? 'loud' : 'soft', text: tips[0] }
+      : !rangeOk ? { kind: range < 1 ? 'flat' : 'sharp', text: tips[0] }
+        : { kind: null, text: tips[tips.length - 1] };
+  return { ok, r, levelDiff, range, score, tips, tip };
 }
 
+/**
+ * A black key that came in as raw velocity 1 fell into the Keystation's black-key hole: its loudness is unknown,
+ * so it is left out of the comparison instead of counting as "too quiet".
+ */
 export function gradeDynamics(phrase, all) {
   const attempt = alignAttempt(phrase.notes, all).aligned;
   const t = phrase.notes.map((x) => x.v);
   const u = phrase.notes.map((_, i) => (attempt[i] ? attempt[i].v : 0));
-  const res = gradeDynamicsArrays(t, u);
+  const known = phrase.notes.map((_, i) => !(attempt[i] && attempt[i].raw === 1 && BLACK.has(attempt[i].p % 12)));
+  const res = gradeDynamicsArrays(t.filter((_, i) => known[i]), u.filter((_, i) => known[i]));
   const pitchMatches = phrase.notes.filter((x, i) => attempt[i] && attempt[i].p === x.p).length;
   const complete = attempt.length >= phrase.notes.length;
-  return { ...res, ok: res.ok && complete, passed: res.ok && complete, complete, pitchMatches, target: t, user: u };
+  const score = complete ? res.score : Math.round(res.score * attempt.length / phrase.notes.length);
+  const tip = complete ? res.tip : { kind: 'count', text: `Zagrałeś ${attempt.length} z ${phrase.notes.length} dźwięków.` };
+  return { ...res, score, tip, ok: res.ok && complete, passed: res.ok && complete, complete, pitchMatches, target: t, user: u, unknown: known.filter((k) => !k).length };
 }
 
 // --- 4. chords --------------------------------------------------------------------------------------
@@ -548,8 +615,10 @@ export const TUNES = [
   { name: 'Dla Elizy (Beethoven), początek', minor: true, notes: [[7, 0.5], [6, 0.5], [7, 0.5], [6, 0.5], [7, 0.5], [2, 0.5], [5, 0.5], [3, 0.5], [0, 1.5]] },
 ];
 
-/** A melody to find by ear. */
-export function earMelody(level, seed) {
+/**
+ * A melody to find by ear. opts.leapBias (0–0.3): more leaps when leaps are what you miss (since 1.10).
+ */
+export function earMelody(level, seed, opts = {}) {
   const r = rng(seed);
   const L = Math.max(1, Math.min(12, level));
   const rootPc = L < 4 ? 0 : r.pick([0, 2, 5, 7, 9, 10, 3]);
@@ -565,7 +634,7 @@ export function earMelody(level, seed) {
   const pool = scaleNotes(rootPc, scale, tonic - 5, tonic + 12);
   const tonicIdx = pool.indexOf(tonic);
   const length = L < 2 ? 3 : L < 4 ? 4 : L < 6 ? 5 : Math.min(8, 5 + Math.floor((L - 5) / 1.5));
-  const leap = L < 3 ? 0 : L < 6 ? 0.2 : 0.35;
+  const leap = L < 3 ? 0 : Math.min(0.6, (L < 6 ? 0.2 : 0.35) + Math.max(0, Math.min(0.3, opts.leapBias || 0)));
   let idx = tonicIdx;
   const notes = [];
   for (let i = 0; i < length; i++) {
@@ -610,15 +679,22 @@ export const METERS = {
   kopanitsa: { name: 'Kopanica 11/8', groups: [2, 2, 3, 2, 2] },
 };
 
+/** level: 1..12, or the axes {metrum, puls} (since 1.10): metrum picks the meters, puls the tempo and the help. */
 export function aksakPlan(level, seed, meterKey = null) {
   const r = rng(seed);
-  const L = Math.max(1, Math.min(12, level));
-  const meters = L < 3 ? ['rachenitsa', 'paidushko'] : L < 6 ? ['rachenitsa', 'paidushko', 'lesnoto'] : L < 9 ? ['rachenitsa', 'lesnoto', 'daychovo'] : ['rachenitsa', 'lesnoto', 'daychovo', 'kopanitsa'];
+  const ax = typeof level === 'object' && level ? level : { metrum: level, puls: level };
+  const M = clampL(ax.metrum), P = clampL(ax.puls ?? ax.metrum);
+  const meters = M < 3 ? ['rachenitsa', 'paidushko'] : M < 6 ? ['rachenitsa', 'paidushko', 'lesnoto'] : M < 9 ? ['rachenitsa', 'lesnoto', 'daychovo'] : ['rachenitsa', 'lesnoto', 'daychovo', 'kopanitsa'];
   const meter = meterKey || r.pick(meters);
-  const eighth = Math.max(0.12, 0.3 - L * 0.014);           // seconds per eighth: 286 ms → 132 ms
-  const fillers = L < 6;                                    // soft clicks on the in-between eighths
-  const silentBars = L >= 9;                                // every other bar: pulse only on the first beat
-  return { meter, eighth, fillers, silentBars, bars: 8, countInBars: 1, level: L };
+  const eighth = Math.max(0.12, 0.3 - P * 0.014);           // seconds per eighth: 286 ms → 132 ms
+  const fillers = P < 6;                                    // soft clicks on the in-between eighths
+  const silentBars = P >= 9;                                // every other bar: pulse only on the first beat
+  return { meter, eighth, fillers, silentBars, bars: 8, countInBars: 1, level: (M + P) / 2 };
+}
+
+/** A round slower (the error loop's "simplify" step): 12 % more time per eighth, with the soft eighths back. */
+export function easierAksak(plan) {
+  return { ...plan, eighth: Math.min(0.3, plan.eighth * 1.12), fillers: true, silentBars: false, easy: true };
 }
 
 /** Pulse events for an aksak round; group starts get a bass note, bar start an accent. */
@@ -690,7 +766,26 @@ export function gradeAksak(plan, sched, onsets) {
   const longRatio = lens.three.length && lens.two.length ? mean(lens.three) / mean(lens.two) : null;
   const meanDev = mean(hits.filter((h) => h.dev !== null).map((h) => h.dev));
   const passed = ratio >= 0.8 && extra <= 2;
-  return { hits, good, total: hits.length, ratio, extra, longRatio, meanDev, passed, longIdx, tol };
+  // drift: least-squares slope of your deviation over the round, in ms per bar (+ = falling behind = slowing)
+  const pts = hits.filter((h) => h.dev !== null).map((h) => [h.t, h.dev]);
+  let drift = null;
+  if (pts.length >= 6) {
+    const mx = mean(pts.map((p) => p[0])), my = mean(pts.map((p) => p[1]));
+    let num = 0, den = 0;
+    for (const [x, y] of pts) { num += (x - mx) * (y - my); den += (x - mx) ** 2; }
+    drift = den > 0 ? Math.round((num / den) * sched.barLen * 1000) : 0;
+  }
+  const puls = Math.max(0, Math.round(100 * ratio - 6 * Math.max(0, extra - 2)));
+  const metrum = longRatio === null ? null : Math.max(0, Math.round(100 - (Math.abs(longRatio - 1.5) / 1.5) * 300));
+  const scores = { puls, metrum };
+  const lr = longRatio;
+  const tip = ratio < 0.8 && drift !== null && Math.abs(drift) >= 6
+    ? { kind: drift > 0 ? 'slow' : 'rush', text: drift > 0 ? `Zwalniasz: z każdym taktem o ok. ${drift} ms później niż bas.` : `Przyspieszasz: z każdym taktem o ok. ${-drift} ms wcześniej niż bas.` }
+    : lr !== null && Math.abs(lr - 1.5) > 0.1
+      ? { kind: lr < 1.5 ? 'short3' : 'long3', text: lr < 1.5 ? 'Skracasz trójkę: zostań w niej dłużej, TA-ki-ta.' : 'Przeciągasz trójkę: wejdź w następną grupę wcześniej.' }
+      : ratio < 0.8 ? { kind: 'miss', text: `Trafione ${good} z ${hits.length}. Graj tylko z basem, nic pomiędzy.` }
+        : { kind: null, text: 'Puls trzymasz równo z basem.' };
+  return { hits, good, total: hits.length, ratio, extra, longRatio, meanDev, passed, longIdx, tol, drift, scores, tip };
 }
 
 // --- 2. daily plan --------------------------------------------------------------------------------------------------

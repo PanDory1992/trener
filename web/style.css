@@ -1075,3 +1075,53 @@ details.pe-grp > summary { cursor: pointer; }
 body.compact .has-dockbar .dockbar, body.compact .dock-top > .dockbar { flex: 0 0 auto; }
 body.compact .dock-stack { flex: 0 0 auto; }
 body.compact .dock-stack > .play-row, body.compact .dock-stack > .actions { flex-wrap: nowrap; gap: 8px; margin: 0; }
+
+/* 1.10: the common frame of the exercises (drillui.js) */
+.drill-head .mode-title { flex: 1 1 auto; }
+.drill-about { margin-top: 8px; color: var(--ink-2); }
+.drill-about > summary { cursor: pointer; color: var(--ink-3); font-size: 14px; list-style: none; display: inline-flex; gap: 6px; align-items: center; }
+.drill-about > summary::before { content: '▸'; transition: transform .15s; }
+.drill-about[open] > summary::before { transform: rotate(90deg); }
+.drill-about p { margin: 6px 0 0; max-width: 62ch; }
+.drill-ladder { flex: 0 0 300px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; font-size: 15px; display: grid; gap: 8px; }
+.dl-now, .dl-next { display: grid; grid-template-columns: 52px 1fr; gap: 2px 8px; align-items: baseline; }
+.dl-now .dl-ax { grid-column: 2; color: var(--ink); }
+.dl-now .dl-ax.off { color: var(--ink-3); }
+.dl-now .dl-ax b, .dl-next b { color: var(--ink-2); font-weight: 600; }
+.dl-next > div { color: var(--mode); }
+.dl-k { grid-row: 1 / span 3; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); padding-top: 2px; }
+.dl-meta { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 6px; font-variant-numeric: tabular-nums; }
+.dl-series { color: var(--mode); }
+.drill-tip { font: 600 21px/1.35 var(--display); color: var(--ink); margin: 8px 0 0; max-width: 46ch; }
+.drill-tip.praise { color: var(--ink-2); font-weight: 500; }
+.drill-opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: -8px 0 16px; font-size: 14px; color: var(--ink-3); }
+.drill-opts label { display: inline-flex; gap: 8px; align-items: center; }
+.drill-more { position: relative; display: inline-block; }
+.drill-more > summary { list-style: none; padding: 10px 16px; }
+.drill-more > summary::-webkit-details-marker { display: none; }
+.drill-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 30; background: var(--panel-2, var(--panel)); border: 1px solid var(--line); border-radius: 14px; padding: 6px; display: grid; gap: 4px; min-width: 210px; box-shadow: 0 10px 30px #0008; }
+.drill-menu .btn { text-align: left; border-radius: 10px; }
+.drill-summary { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--mode); border-radius: 14px; padding: 16px 20px; max-width: 640px; }
+.drill-summary h2 { margin: 0 0 4px; font: 800 26px var(--display); }
+.ds-avg { margin: 0 0 12px; color: var(--ink-2); }
+.ds-axes { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.ds-ax { background: #1e1a36; border-radius: 10px; padding: 8px 12px; display: grid; font-variant-numeric: tabular-nums; }
+.ds-ax b { font-size: 13px; color: var(--ink-3); font-weight: 600; }
+.ds-ax.up span { color: var(--good); } .ds-ax.down span { color: #ffb1b6; }
+.ds-tip { color: var(--ink-2); margin: 0 0 14px; }
+.seg-ctl.tiny button { padding: 4px 10px; font-size: 13px; }
+.drift { margin-top: 10px; }
+.drift svg { width: 100%; max-width: 640px; height: 120px; display: block; }
+.drift .zero { stroke: var(--line); stroke-dasharray: 4 4; }
+.drift .pt { fill: var(--mode); }
+.drift .trend { stroke: var(--ink-2); stroke-width: 2; }
+.chord-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.chord-chips span { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-variant-numeric: tabular-nums; }
+.chord-chips span.weak { border-color: #5a2a3f; }
+@media (max-width: 1100px) { .drill-ladder { flex-basis: 240px; } }
+@media (max-width: 760px) { .drill-head { flex-direction: column; } .drill-ladder { flex-basis: auto; width: 100%; box-sizing: border-box; } .drill-tip { font-size: 18px; } }
+.lat-set { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lat-set input { width: 80px; }
+.series-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.series-list li { border-left: 3px solid var(--c, var(--mode)); padding-left: 10px; color: var(--ink-2); }
+.series-list b { color: var(--ink); }

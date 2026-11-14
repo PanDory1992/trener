@@ -228,7 +228,7 @@ export function rollChart(motif, attempt, grade, { width = 760, height = 220 } =
 }
 
 /** Two velocity curves: target (dashed) and yours. */
-export function curveChart(target, user, { width = 760, height = 240 } = {}) {
+export function curveChart(target, user, { width = 760, height = 240, showTarget = true } = {}) {
   const pad = { l: 46, r: 18, t: 18, b: 30 };
   const n = target.length;
   const X = (i) => pad.l + (n > 1 ? i / (n - 1) : 0.5) * (width - pad.l - pad.r);
@@ -239,12 +239,12 @@ export function curveChart(target, user, { width = 760, height = 240 } = {}) {
     s.append(svg('text', { x: pad.l - 8, y: Y(v) + 4, 'text-anchor': 'end', class: 'axis' }, label));
   }
   const path = (arr) => arr.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
-  s.append(svg('path', { d: path(target), class: 'curve-want' }));
+  if (showTarget) s.append(svg('path', { d: path(target), class: 'curve-want' }));
   if (user && user.length) {
     s.append(svg('path', { d: path(user), class: 'curve-you' }));
     user.forEach((v, i) => s.append(svg('circle', { cx: X(i), cy: Y(v), r: 5, class: 'dot-you' })));
   }
-  target.forEach((v, i) => s.append(svg('circle', { cx: X(i), cy: Y(v), r: 3.5, class: 'dot-want' })));
+  if (showTarget) target.forEach((v, i) => s.append(svg('circle', { cx: X(i), cy: Y(v), r: 3.5, class: 'dot-want' })));
   return s;
 }
 

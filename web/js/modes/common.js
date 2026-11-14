@@ -113,3 +113,26 @@ export class Capture {
 export function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 export function seed() { return (Date.now() ^ (Math.random() * 1e9)) >>> 0; }
+
+/**
+ * Latency check (1.10, moved from Aksak to Ustawienia): 10 clicks, tap along from the 3rd; the median of your
+ * offsets is how late you hear the sound. feed(e) with every note-on; resolves with ms (0–150) or null.
+ */
+export function measureLatency(onStatus) {
+  const beat = 0.6, n = 10;
+  const taps = [];
+  let t0 = null;
+  const events = [];
+  for (let k = 0; k < n; k++) { events.push({ t: k * beat, m: [0x90, 84, 80] }); events.push({ t: k * beat + 0.08, m: [0x80, 84, 0] }); }
+  const done = playEvents(events).then((start) => new Promise((resolve) => {
+    t0 = start;
+    onStatus('Stukaj dowolnym klawiszem razem z kliknięciami, od trzeciego.');
+    bus.at(t0 + n * beat + 0.4, () => {
+      const devs = taps.map((t) => { const k = Math.round((t - t0) / beat); return k >= 2 && k < n ? (t - t0) - k * beat : null; })
+        .filter((d) => d !== null && Math.abs(d) < beat / 3).sort((a, b) => a - b);
+      if (devs.length < 4) { onStatus('Za mało stuknięć. Spróbuj jeszcze raz.'); resolve(null); return; }
+      resolve(Math.max(0, Math.min(150, Math.round(devs[Math.floor(devs.length / 2)] * 1000))));
+    });
+  }));
+  return { done, feed(e) { if (e.on && t0 !== null) taps.push(e.ts); } };
+}

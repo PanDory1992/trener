@@ -27,6 +27,7 @@ import { toggleLoop, loopOn } from './loop.js';
 import { pickDice, hints, firstNewToday } from './suggest.js';
 import { reviewBar, allSongs } from './reviewbar.js';
 import { createPedalCoach, VERDICT_TEXT } from './pedalcoach.js';
+import { measureLatency } from './modes/common.js';
 
 const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, fiszki, wolne, kolo, jam, piosenki, palce };
 const MAIN = ['kolo', 'piosenki', 'jam'];
@@ -212,7 +213,7 @@ function go(id, ctxExtra = {}) {
   keyboard.setColor(color);
   refreshNav();
   if (id === 'home') return renderHome(stage);
-  if (id === 'settings') return renderSettings(stage);
+  if (id === 'settings') { instance = renderSettings(stage); return; }
   if (id === 'help') return renderHelp(stage);
   const engine = ENGINES[id];
   instance = engine.mount(stage, { keyboard, block: ctxExtra.block || null, onBlockDone: ctxExtra.onBlockDone || null, preset: ctxExtra.preset || null, dock: setDock, go: (to, extra) => go(to, extra || {}) });
@@ -278,6 +279,7 @@ function renderHome(stage) {
             el('div', { class: 'wd-bar' }, el('i', { style: { height: `${Math.max(2, (w.sec / maxSec) * 100)}%` } })),
             el('span', {}, w.label)))),
           el('p', { class: 'muted' }, `Dziś: ${fmtMin((store.data.days[store.today()] || {}).sec || 0)} grania.`)),
+        seriesPanel(),
         weekPanel(),
         pedalPanel())),
     el('section', { class: 'modes-grid' }, NAV.map((id) => {
@@ -311,6 +313,16 @@ function weekPanel() {
     el('p', { class: 'muted' }, `Czarne klawisze uderzasz z siłą ${r0(c.black)}, białe ${r0(c.white)}. „1” (za wolne dotknięcie) na czarnych: ${Math.round((c.black_ones || 0) * 1000) / 10}%.`),
     t ? el('p', { class: 'week-task' }, el('b', {}, `Zadanie: ${t.title}. `), t.text) : null,
     t && MODES[t.mode] ? el('button', { class: 'btn small', onclick: () => go(t.mode) }, `Otwórz: ${MODES[t.mode].title}`) : null);
+}
+
+/** Series finished today in the exercises (1.10). */
+function seriesPanel() {
+  const list = (store.data.days[store.today()] || {}).series || [];
+  if (!list.length) return null;
+  return el('div', { class: 'panel' },
+    el('h2', {}, 'Serie dziś'),
+    el('ul', { class: 'series-list' }, list.slice(-6).reverse().map((x) => el('li', { style: { '--c': (MODES[x.id] || {}).color } },
+      el('b', {}, `${(MODES[x.id] || {}).title || x.id}: `), `${x.ok} z ${x.n} udanych, średnio ${x.avg} pkt`))));
 }
 
 function pedalPanel() {
@@ -449,6 +461,19 @@ function hideOverlay() { const o = document.getElementById('overlay'); o.hidden 
 // --- settings & help --------------------------------------------------------------------------------------
 function renderSettings(stage) {
   const s = store.data.settings;
+  let probe = null;
+  const latInput = el('input', { type: 'number', min: '0', max: '150', value: String(s.latencyMs), onchange: (e) => { s.latencyMs = Math.max(0, Math.min(150, Number(e.target.value) || 0)); store.save(); } });
+  const latMsg = el('span', { class: 'muted lat-msg', 'aria-live': 'polite' });
+  async function measure() {
+    if (probe) return;
+    probe = measureLatency((t) => { latMsg.textContent = t; });
+    let ms = null;
+    try { ms = await probe.done; } catch { latMsg.textContent = 'Serwer Trenera nie odpowiada.'; }
+    probe = null;
+    if (ms === null) return;
+    s.latencyMs = ms; latInput.value = String(ms); store.save();
+    latMsg.textContent = `${ms} ms. Zapisane.`;
+  }
   const row = (label, help, control) => el('div', { class: 'set-row' }, el('div', {}, el('b', {}, label), el('p', {}, help)), control);
   add(stage, 
     el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, 'Ustawienia'), el('p', { class: 'mode-sub' }, 'Dźwięk, światła, klik i telefon. Zmiany zapisują się od razu.'))),
@@ -459,14 +484,15 @@ function renderSettings(stage) {
       row('Głośność trenera', 'Jak głośno gram wzory i akompaniament (mnożnik siły uderzenia). Twoja gra się nie zmienia.',
         el('input', { type: 'range', min: '0.6', max: '1.3', step: '0.05', value: String(s.gain), oninput: (e) => { s.gain = Number(e.target.value); store.save(); } })),
       clickRow(row, s),
-      row('Opóźnienie odsłuchu', 'Ile milisekund mija, zanim usłyszysz dźwięk. Odejmuję je od twoich uderzeń w Aksaku. Zmierzysz je w Aksaku przyciskiem „Zmierz opóźnienie”.',
-        el('input', { type: 'number', min: '0', max: '150', value: String(s.latencyMs), onchange: (e) => { s.latencyMs = Math.max(0, Math.min(150, Number(e.target.value) || 0)); store.save(); } })),
+      row('Opóźnienie odsłuchu', 'Ile milisekund mija, zanim usłyszysz dźwięk. Odejmuję je od twoich uderzeń we wszystkich ćwiczeniach z rytmem (Aksak, Nuty docelowe, Graj ze mną). „Zmierz”: zagram 10 kliknięć, stukaj razem z nimi od trzeciego.',
+        el('div', { class: 'lat-set' }, latInput, el('button', { class: 'btn small', onclick: () => measure() }, 'Zmierz'), latMsg)),
       row('Fiszki z błędów', 'Motyw z Echa albo melodia Ze słuchu, które nie wyszły, same trafiają do fiszek (najwyżej 3 dziennie).',
         el('input', { type: 'checkbox', checked: s.autoCards, onchange: (e) => { s.autoCards = e.target.checked; store.save(); } })),
       row('Poziomy', 'Wyzeruj poziom jednego trybu, jeśli chcesz zacząć od nowa.',
         el('select', { onchange: (e) => { const id = e.target.value; if (id && window.confirm(`Wyzerować poziom: ${MODES[id].long}?`)) { store.data.modes[id] = { level: 1, hist: [], lastDay: null, best: 1 }; store.save(); toast('Wyzerowane.'); } e.target.value = ''; } },
           el('option', { value: '' }, 'Wybierz tryb…'), MODE_IDS.map((id) => el('option', { value: id }, MODES[id].long)))),
       el('p', { class: 'muted' }, 'Postępy zapisują się same w pliku trener-dane.json w folderze routera, z codzienną kopią.')));
+  return { onNote(e) { if (probe) probe.feed(e); }, destroy() { probe = null; } };
 }
 
 // The metronome click: piano (high C) or its own track "Klik" in Studio One on MIDI channel 16, pads C1..G1.

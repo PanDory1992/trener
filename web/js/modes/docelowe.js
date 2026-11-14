@@ -1,8 +1,9 @@
 // 5. Target notes: I comp with the left hand, you improvise and land on chord tones.
 import * as bus from '../bus.js';
-import { backingChorus, classifyTarget, pcName, PROGRESSIONS } from '../music.js';
+import { backingChorus, chordPcs, classifyTarget, pcName, PROGRESSIONS } from '../music.js';
 import * as store from '../store.js';
-import { el, levelHeader, refreshLevel, status, svg, legend, fill, add } from '../ui.js';
+import { el, status, svg, legend, fill, add } from '../ui.js';
+import { createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
 import { Looper, seed } from './common.js';
 import { loopOn } from '../loop.js';
 import { plural, rng } from '../music.js';
@@ -30,26 +31,47 @@ export function mount(stage, ctx) {
   // 4 choruses; with Pętla on, more choruses follow until you stop (or switch Pętla off)
   const looper = new Looper({ onEnd: (end) => { if (run && !run.done) run.endCancel = bus.at(end + 0.3, () => finish()); } });
 
-  const head = levelHeader(id, 'Gra w nuty docelowe', 'Gram lewą ręką akordy. Ty improwizujesz prawą, powyżej środkowego C. Punkty dostajesz za dźwięki akordu (1, 3, 5, 7) zagrane na raz i na trzy.');
-  const controls = el('div', { class: 'controls' });
+  const rec = store.mode(id);
+  const drill = createDrill(id, {
+    title: 'Gra w nuty docelowe',
+    about: 'Gram lewą ręką akordy. Ty improwizujesz prawą, powyżej środkowego C. Punkty dostajesz za dźwięki akordu (1, 3, 5, 7) zagrane na raz i na trzy. Każdy chorus to jedna próba w serii. Opóźnienie odsłuchu z Ustawień jest odejmowane od twoich uderzeń.',
+  });
+  const controls = el('div', { class: 'drill-opts' });
   const line = el('div', { class: 'status-wrap' }, status('Naciśnij Start albo C56.'));
   const score = el('div', { class: 'score-row' });
   const lane = el('div', { class: 'lane-wrap' });
   const result = el('div', { class: 'result' });
-  const actions = el('div', { class: 'actions' },
-    el('button', { class: 'btn primary', onclick: () => start() }, 'Start'),
-    el('button', { class: 'btn', onclick: () => stopRun('Zatrzymane.') }, '■ Stop'));
-  add(stage, head, controls, line, score, lane, result);
-  ctx.dock(actions);
-  const setStatus = (t, k = '') => fill(line, status(t, k));
+  const dock = drillDock({ primary: 'Start', onPrimary: () => (run && !run.done ? stopRun('Zatrzymane.') : start()), onHint: () => hintNow() });
+  add(stage, drill.head, controls, line, score, lane, result);
+  ctx.dock(dock.node);
+  const setStatus = (t, k = '', tip = null) => verdict(line, t, k, tip);
 
-  controls.append(el('label', { class: 'field' }, el('span', {}, 'Progresja'),
+  controls.append(el('label', {}, 'Progresja',
     el('select', { onchange: (e) => { manualProg = e.target.value; store.mode(id).prog = manualProg; store.save(); } },
-      [['auto', 'Automatycznie (wg poziomu)'], ...PROGS.map((k) => [k, PROGRESSIONS[k].name])].map(([v, t]) => el('option', { value: v, selected: v === manualProg }, t)))));
+      [['auto', 'Automatycznie (wg poziomu)'], ...PROGS.map((k) => [k, PROGRESSIONS[k].name])].map(([v, t]) => el('option', { value: v, selected: v === manualProg }, t)))),
+  el('label', {}, el('input', { type: 'checkbox', checked: !!rec.showTones, onchange: (e) => { rec.showTones = e.target.checked; store.save(); markTones(); } }), 'Dźwięki akordu na klawiszach'));
+
+  /** The current chord's tones above middle C, with their roles (when "Dźwięki akordu na klawiszach" is on). */
+  function markTones(c = run && run.curChord) {
+    if (!rec.showTones || !c) { ctx.keyboard.mark([]); return; }
+    const labels = ['1', '3', '5', '7'];
+    const pcs = chordPcs(c.rootPc, c.type);
+    const marks = [];
+    for (let n = 60; n < 84; n++) { const k = pcs.indexOf(n % 12); if (k >= 0) marks.push({ note: n, text: labels[k], tone: `var(--role-${labels[k]})` }); }
+    ctx.keyboard.mark(marks);
+  }
+
+  function hintNow() {
+    const c = run && run.curChord;
+    if (!c) { setStatus('Najpewniejsze nuty: tercja i septyma akordu. Zagraj je na raz, a między nimi cokolwiek.', 'listen'); return; }
+    const pcs = chordPcs(c.rootPc, c.type);
+    const flat = [5, 10, 3, 8, 1].includes(run.plan.keyPc);
+    setStatus(`${c.symbol}: tercja ${pcName(pcs[1], flat)}${pcs[3] !== undefined ? `, septyma ${pcName(pcs[3], flat)}` : ''}. Zagraj je na raz.`, 'listen');
+  }
 
   async function start() {
     stopRun();
-    const level = store.mode(id).level;
+    const level = drill.axes().docelowe;
     const plan = planFor(level, seed());
     if (manualProg !== 'auto') plan.prog = manualProg;
     const ch = backingChorus(plan.prog, plan.keyPc, plan.tempo, { barsPerChord: plan.prog === 'blues' ? 1 : plan.barsPerChord });
@@ -61,7 +83,8 @@ export function mount(stage, ctx) {
     let t0;
     try { t0 = await looper.start(events, countIn + CHORUSES * ch.seconds, { gap: 0, repeat: { events: ch.events, seconds: ch.seconds } }); } catch { setStatus('Serwer Trenera nie odpowiada.', 'bad'); return; }
     if (!alive) return;
-    run = { t0, plan, ch, start: t0 + countIn, notes: [], chorusScores: [], done: false };
+    run = { t0, plan, ch, start: t0 + countIn, notes: [], chorusScores: [], done: false, curChord: null };
+    dock.setPrimary('■ Stop');
     setStatus(`${PROGRESSIONS[plan.prog].name} w ${pcName(plan.keyPc, [5, 10, 3, 8, 1].includes(plan.keyPc))}, ${plan.tempo} BPM. Odliczam takt…`, 'listen');
     fill(result, );
     drawLane();
@@ -110,6 +133,8 @@ export function mount(stage, ctx) {
       const t = bus.now() - run.start;
       if (t >= 0 && !run.done) {
         const within = t % run.ch.seconds;
+        const cNow = run.ch.chords.find((x) => within >= x.start && within < x.end) || null;
+        if (cNow !== run.curChord) { run.curChord = cNow; markTones(cNow); }
         const x = run.svg.X(within);
         run.svg.head.setAttribute('x1', x); run.svg.head.setAttribute('x2', x);
         if (Math.floor(t / run.ch.seconds) !== run.lastChorus) {
@@ -132,9 +157,34 @@ export function mount(stage, ctx) {
     const strong = ns.filter((n) => n.strong);
     const ratio = strong.length ? strong.filter((n) => n.kind === 'chord').length / strong.length : 0;
     const passed = strong.length >= 4 && ratio >= 0.7;
-    run.chorusScores.push({ k, ratio, strong: strong.length, passed });
-    store.record(id, passed);
-    refreshLevel(stage, id);
+    // 0–100: the share of chord tones on the strong beats, scaled down when there were fewer than 4 of them
+    const sc = Math.round(100 * ratio * Math.min(1, strong.length / 4));
+    run.chorusScores.push({ k, ratio, strong: strong.length, passed, score: sc });
+    const tip = chordTip(ns);
+    const r = drill.counted({ docelowe: sc }, passed, tip);
+    if (r.summary) run.summary = r.summary;
+  }
+
+  /** Per chord symbol: the share of chord tones on the strong beats. */
+  function perChord(ns) {
+    const by = new Map();
+    for (const n of ns.filter((x) => x.strong)) {
+      const v = by.get(n.chord) || { hit: 0, all: 0 };
+      v.all++; if (n.kind === 'chord') v.hit++;
+      by.set(n.chord, v);
+    }
+    return [...by].map(([chord, v]) => ({ chord, ratio: v.hit / v.all, all: v.all }));
+  }
+
+  function chordTip(ns) {
+    const pc = perChord(ns).filter((x) => x.all >= 2).sort((a, b) => a.ratio - b.ratio);
+    if (!pc.length) return { kind: 'few', text: 'Za mało dźwięków na raz i trzy. Graj mniej, ale na mocne części taktu.' };
+    const w = pc[0];
+    if (w.ratio >= 0.75) return { kind: null, text: 'Każdy akord trafiany.' };
+    const c = run.ch.chords.find((x) => x.symbol === w.chord);
+    const pcs = c ? chordPcs(c.rootPc, c.type) : [];
+    const flat = [5, 10, 3, 8, 1].includes(run.plan.keyPc);
+    return { kind: `chord-${w.chord}`, text: `Na ${w.chord} trafiasz ${Math.round(w.ratio * 100)}%. Celuj w ${pcs.length ? pcName(pcs[1], flat) : 'tercję'}${pcs[3] !== undefined ? ` i ${pcName(pcs[3], flat)}` : ''} (3${pcs[3] !== undefined ? ' i 7' : ''}).` };
   }
 
   function finish(upTo = null) {
@@ -147,9 +197,16 @@ export function mount(stage, ctx) {
     run.chorusScores.sort((a, b) => a.k - b.k);
     cancelAnimationFrame(raf);
     const ok = run.chorusScores.filter((c) => c.passed).length;
-    setStatus(ok >= 3 ? 'Świetnie trzymasz się harmonii.' : ok >= 1 ? 'Dobry kierunek. Celuj w 3 i 7 na raz.' : 'Spróbuj wolniej: na każdy akord zagraj najpierw tylko jego tercję.', ok >= 3 ? 'good' : 'bad');
-    fill(result, el('div', { class: 'chorus-cards' }, run.chorusScores.map((c) => el('div', { class: `cc ${c.passed ? 'ok' : 'bad'}` },
-      el('b', {}, `Chorus ${c.k + 1}`), el('span', {}, c.strong ? `${Math.round(c.ratio * 100)}% w akord na raz i trzy (${c.strong} ${plural(c.strong, 'dźwięk', 'dźwięki', 'dźwięków')})` : 'za mało dźwięków na raz i trzy')))));
+    const tip = chordTip(run.notes);
+    setStatus(ok >= 3 ? 'Świetnie trzymasz się harmonii.' : ok >= 1 ? 'Dobry kierunek.' : 'Spróbuj wolniej: na każdy akord najpierw sama tercja.', ok >= 3 ? 'good' : 'bad', tip);
+    dock.setPrimary('Start');
+    markTones(null);
+    const chords = perChord(run.notes);
+    fill(result,
+      el('div', { class: 'chorus-cards' }, run.chorusScores.map((c) => el('div', { class: `cc ${c.passed ? 'ok' : 'bad'}` },
+        el('b', {}, `Chorus ${c.k + 1}`), el('span', {}, c.strong ? `${Math.round(c.ratio * 100)}% w akord na raz i trzy (${c.strong} ${plural(c.strong, 'dźwięk', 'dźwięki', 'dźwięków')})` : 'za mało dźwięków na raz i trzy')))),
+      chords.length ? el('div', { class: 'chord-chips', 'aria-label': 'Wynik na akord' }, chords.map((c) => el('span', { class: c.ratio < 0.6 ? 'weak' : '' }, `${c.chord} ${Math.round(c.ratio * 100)}%`))) : null,
+      run.summary ? seriesCard(run.summary, drill.labels, () => start()) : null);
   }
 
   function stopRun(msg) {
@@ -159,13 +216,14 @@ export function mount(stage, ctx) {
     if (run) { run.endCancel && run.endCancel(); run.done = true; }
     cancelAnimationFrame(raf);
     bus.stop();
+    dock.setPrimary('Start');
     if (msg) setStatus(msg);
   }
 
   return {
     onNote(e) {
       if (!run || run.done || !e.on) return;
-      const t = e.ts - run.start;
+      const t = e.ts - run.start - (store.data.settings.latencyMs || 0) / 1000;
       if (t < -0.1) return;
       const k = Math.floor(t / run.ch.seconds);
       const within = t - k * run.ch.seconds;
@@ -180,8 +238,8 @@ export function mount(stage, ctx) {
     onPilot(a) {
       if (a === 'start' || a === 'repeat') start();
       if (a === 'pause' || a === 'end') stopRun('Zatrzymane.');
-      if (a === 'hint') setStatus('Najpewniejsze nuty: tercja i septyma akordu. Zagraj je na raz, a między nimi cokolwiek.', 'listen');
+      if (a === 'hint') hintNow();
     },
-    destroy() { alive = false; stopRun(); },
+    destroy() { alive = false; stopRun(); ctx.keyboard.mark([]); },
   };
 }

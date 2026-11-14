@@ -121,7 +121,7 @@ def main():
             pg.click("nav >> text=Ze słuchu")
             pg.wait_for_timeout(400)
             t = time.time()
-            pg.get_by_role("button", name="Nowa melodia", exact=True).click()
+            pg.get_by_role("button", name="Start", exact=True).click()
             pg.wait_for_timeout(9000)
             n = notes_since(user, t)
             ok("Ucho repeats", len(n) >= 6, f"notes={len(n)}")

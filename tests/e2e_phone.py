@@ -38,11 +38,15 @@ def fonts(route):
                           ("Atkinson Hyperlegible", "fontsource-atkinson-hyperlegible-5.1.0/package/files/atkinson-hyperlegible-latin-400-normal.woff2", "400"),
                           ("Atkinson Hyperlegible", "fontsource-atkinson-hyperlegible-5.1.0/package/files/atkinson-hyperlegible-latin-ext-700-normal.woff2", "700"),
                           ("Atkinson Hyperlegible", "fontsource-atkinson-hyperlegible-5.1.0/package/files/atkinson-hyperlegible-latin-700-normal.woff2", "700")]:
-            css += f"@font-face{{font-family:'{fam}';font-weight:{w};src:url(https://fonts.gstatic.com/local/{f})}}\n"
+            if (FONTS / f).exists():   # 14.11: a new cloud session has no font files; then system fonts, no error
+                css += f"@font-face{{font-family:'{fam}';font-weight:{w};src:url(https://fonts.gstatic.com/local/{f})}}\n"
         route.fulfill(body=css, content_type="text/css")
     else:
-        rel = url.split("/local/", 1)[1]
-        route.fulfill(body=(FONTS / rel).read_bytes(), content_type="font/woff2")
+        rel = url.split("/local/", 1)[1] if "/local/" in url else ""
+        if rel and (FONTS / rel).exists():
+            route.fulfill(body=(FONTS / rel).read_bytes(), content_type="font/woff2")
+        else:
+            route.fulfill(status=404, body="")
 
 
 def main():

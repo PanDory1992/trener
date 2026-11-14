@@ -1,6 +1,6 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.13** (14.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.13.1** (14.11.2026).
 
 **Stan: zamrożenie funkcji** (decyzja Mikiego 10.11). Nie dodajemy funkcji bez wyraźnej prośby. Dozwolone: poprawki błędów, dokumentacja, testy.
 
@@ -151,7 +151,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, 168 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 169 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
 - Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
@@ -188,6 +188,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.13.1 | 14.11 | Siłownia: poziom zmienia się raz na całą progresję (oba przebiegi), nie po każdym akordzie (`roundResult` w `drill.js`: średnia, zaliczona tylko gdy każdy akord, rada najsłabszego). Seria = 10 progresji. Pominięty akord = 0. |
 | 1.13 | 14.11 | Siłownia: tryb Przewroty (8 etapów, własny poziom), Dowolny przewrót (domyślnie), każda progresja dwa razy (tak samo, w przewrotach albo z septymami), 14 nowych podstawowych progresji (rodzina Podstawy), czytelne „Na dole: X” przy akordach z kreską. |
 | 1.12 | 14.11 | Siłownia akordów: Prawdziwe progresje (62, w 10 rodzinach, zestawy w jednej tonacji, dobór do poziomu z powtórkami i nowościami), akordy z kreską, nowe rodzaje akordów (6, m6, °7, +, sus). |
 | 1.11.1 | 14.11 | Bez samooceny „Jak poszło?” (Miki jej nie chce); zimny start pomija rewanż; automatyczne przejście do następnej próby dwa razy szybsze (Echo 1,3–1,8 s, Echo dynamiki 1,4–1,9 s, Ze słuchu 1,9 s). |

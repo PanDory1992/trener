@@ -471,6 +471,14 @@ export const CHORDS = {
   dom7: { sym: '7', name: 'dominantowy', iv: [0, 4, 7, 10] },
   m7b5: { sym: 'm7♭5', name: 'półzmniejszony', iv: [0, 3, 6, 10] },
   mMaj7: { sym: 'm(maj7)', name: 'molowy z wielką septymą', iv: [0, 3, 7, 11] },
+  // 1.12, for the bank of real progressions (progbank.js); roles label the keys
+  maj6: { sym: '6', name: 'durowy z sekstą', iv: [0, 4, 7, 9], roles: ['1', '3', '5', '6'] },
+  m6: { sym: 'm6', name: 'molowy z sekstą', iv: [0, 3, 7, 9], roles: ['1', '3', '5', '6'] },
+  dim7: { sym: '°7', name: 'zmniejszony septymowy', iv: [0, 3, 6, 9] },
+  aug: { sym: '+', name: 'zwiększony', iv: [0, 4, 8] },
+  sus4: { sym: 'sus4', name: 'z kwartą zamiast tercji', iv: [0, 5, 7], roles: ['1', '4', '5'] },
+  sus2: { sym: 'sus2', name: 'z sekundą zamiast tercji', iv: [0, 2, 7], roles: ['1', '2', '5'] },
+  sus7: { sym: '7sus4', name: 'dominantowy z kwartą', iv: [0, 5, 7, 10], roles: ['1', '4', '5', '7'] },
 };
 
 export const PROGRESSIONS = {
@@ -502,7 +510,7 @@ export function chordSymbol(rootPc, type, flat) {
 export function roleIn(pc, rootPc, type) {
   const iv = (((pc - rootPc) % 12) + 12) % 12;
   const ivs = CHORDS[type].iv;
-  const labels = ['1', '3', '5', '7'];
+  const labels = CHORDS[type].roles || ['1', '3', '5', '7'];
   const k = ivs.indexOf(iv);
   if (k >= 0) return labels[k];
   if (iv === 2 || iv === 1 || iv === 3) return '9';
@@ -512,7 +520,14 @@ export function roleIn(pc, rootPc, type) {
 }
 
 /** Check a played chord (MIDI notes held together) against a target. */
-export function checkChord(notes, rootPc, type, style = 'any') {
+export function checkChord(notes, rootPc, type, style = 'any', bassPc = null) {
+  // a slash chord (1.12): the named bass at the bottom, the chord above in any voicing
+  if (bassPc !== null && bassPc !== undefined) {
+    const sorted = [...new Set(notes)].sort((a, b) => a - b);
+    const r = checkChord(sorted.filter((n) => n % 12 !== bassPc || chordPcs(rootPc, type).includes(bassPc)), rootPc, type, 'any');
+    const bassOk = sorted.length > 0 && sorted[0] % 12 === bassPc;
+    return { ...r, notes: sorted, bassOk, ok: r.ok && bassOk };
+  }
   const sorted = [...new Set(notes)].sort((a, b) => a - b);
   const pcs = new Set(sorted.map((n) => n % 12));
   const need = chordPcs(rootPc, type);
@@ -551,7 +566,15 @@ export function movement(prev, next) {
 }
 
 /** A reference voicing near middle C (for "Posłuchaj" and hints). */
-export function referenceVoicing(rootPc, type, style = 'any', prev = null) {
+export function referenceVoicing(rootPc, type, style = 'any', prev = null, bassPc = null) {
+  if (bassPc !== null && bassPc !== undefined) {
+    // a slash chord: the chord in the middle, its bass below (C2–B3)
+    const v = referenceVoicing(rootPc, type, 'any', prev && prev.length > 1 ? prev.slice(1) : prev);
+    let b = 48 + ((bassPc - 48) % 12 + 12) % 12;
+    while (b >= v[0]) b -= 12;
+    if (b < 36) b += 12;
+    return [b, ...v.filter((n) => n !== b)];
+  }
   const pcs = chordPcs(rootPc, type);
   const isSeventh = pcs.length === 4;
   let set;

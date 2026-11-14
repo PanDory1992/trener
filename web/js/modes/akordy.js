@@ -1,13 +1,15 @@
 // 4. Chord gym: I show a chord, you play it in the asked voicing.
 import * as bus from '../bus.js';
-import { checkChord, chordGymPlan, chordPcs, CHORDS, movement, pcName, progressionChords, PROGRESSIONS, referenceVoicing, roleIn, VOICING_STYLES } from '../music.js';
+import { checkChord, chordGymPlan, chordPcs, CHORDS, movement, pcName, progressionChords, PROGRESSIONS, referenceVoicing, rng, roleIn, VOICING_STYLES } from '../music.js';
+import { BANK_BY_ID, bankChords, bankStyle, FAMILIES, keyName, nextSet, setTonic } from '../progbank.js';
 import * as store from '../store.js';
 import { el, status, fill, add } from '../ui.js';
 import { addLine, createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
 import { Looper, playEvents, seed } from './common.js';
 
 export const id = 'akordy';
-const ROLE_TONE = { 1: 'var(--role-1)', 3: 'var(--role-3)', 5: 'var(--role-5)', 7: 'var(--role-7)', 9: 'var(--role-t)', 11: 'var(--role-t)', 13: 'var(--role-t)' };
+const ROLE_TONE = { 1: 'var(--role-1)', 2: 'var(--role-3)', 3: 'var(--role-3)', 4: 'var(--role-3)', 5: 'var(--role-5)', 6: 'var(--role-7)', 7: 'var(--role-7)', 9: 'var(--role-t)', 11: 'var(--role-t)', 13: 'var(--role-t)' };
+const RECENT = 12;   // a bank progression played in the last 12 rounds is pushed back hard
 const STABLE_MS = 170;
 
 export function mount(stage, ctx) {
@@ -24,6 +26,8 @@ export function mount(stage, ctx) {
   let stableTimer = null;
   let started = false;
   let manual = store.data.modes[id]?.manual || null;
+  // 1.12: 'real' = real progressions from the bank (default), 'auto' = the old exercise rounds, or manual
+  let pick = store.data.modes[id]?.pick || 'real';
   const times = [];
   let shownAt = 0;
   let wrongShown = false;
@@ -55,9 +59,10 @@ export function mount(stage, ctx) {
     const sel = (label, value, options, onchange) => el('label', {}, label,
       el('select', { onchange: (e) => onchange(e.target.value) }, options.map(([v, t]) => el('option', { value: v, selected: v === value }, t))));
     fill(controls, 
-      sel('Wybór', manual ? 'manual' : 'auto', [['auto', 'Automatycznie (wg poziomu)'], ['manual', 'Sam wybieram']], (v) => {
+      sel('Wybór', manual ? 'manual' : pick, [['real', 'Prawdziwe progresje (wg poziomu)'], ['auto', 'Ćwiczenia ii–V–I i pop (wg poziomu)'], ['manual', 'Sam wybieram']], (v) => {
         manual = v === 'manual' ? (manual || { prog: 'twoFiveOne', style: 'any', keyPc: 0 }) : null;
-        store.mode(id).manual = manual; store.save(); renderControls();
+        if (v !== 'manual') pick = v;
+        Object.assign(store.mode(id), { manual, pick }); store.save(); renderControls();
       }),
       manual ? sel('Progresja', manual.prog, Object.entries(PROGRESSIONS).map(([k, p]) => [k, p.name]), (v) => { manual.prog = v; fixStyle(); store.save(); renderControls(); }) : null,
       manual ? sel('Układ', manual.style, Object.entries(VOICING_STYLES).filter(([k]) => PROGRESSIONS[manual.prog].sevenths || k === 'any' || k === 'rootBass').map(([k, s]) => [k, s.name]), (v) => { manual.style = v; store.save(); }) : null,
@@ -68,22 +73,52 @@ export function mount(stage, ctx) {
 
   function newRound() {
     if (card) plan = card.payload;
-    else plan = manual ? { ...manual } : chordGymPlan(store.mode(id).level, seed());
-    chords = progressionChords(plan.prog, plan.keyPc);
+    else plan = manual ? { ...manual } : pick === 'real' ? bankPlan() : chordGymPlan(store.mode(id).level, seed());
+    chords = plan.real ? bankChords(plan.real, plan.keyPc) : progressionChords(plan.prog, plan.keyPc);
     i = 0;
     renderBoard();
+  }
+
+  /** The next real progression: sets of up to 3 from one family in one key signature, then a neighbouring key. */
+  function bankPlan() {
+    const rec = store.mode(id);
+    const level = rec.level || 1;
+    const r = rng(seed());
+    let set = rec.realSet;
+    if (!set || !set.ids || set.at >= set.ids.length || set.ids.some((x) => !BANK_BY_ID[x])) {
+      set = nextSet(level, r, { seen: rec.realSeen || {}, recent: rec.realRecent || [], prev: set && set.fam ? set : null });
+    }
+    const pid = set.ids[set.at];
+    const p = BANK_BY_ID[pid];
+    const fresh = !(rec.realSeen || {})[pid];
+    rec.realSet = { ...set, at: set.at + 1 };
+    rec.realSeen = { ...(rec.realSeen || {}), [pid]: ((rec.realSeen || {})[pid] || 0) + 1 };
+    rec.realRecent = [...(rec.realRecent || []).filter((x) => x !== pid), pid].slice(-RECENT);
+    store.save();
+    return { real: pid, keyPc: setTonic(set, pid), style: bankStyle(level, p, r), fam: set.fam, k: set.at + 1, n: set.ids.length, fresh };
+  }
+
+  function planTitle() {
+    if (plan.real) { const p = BANK_BY_ID[plan.real]; return `${p.name} w ${keyName(plan.keyPc, p.minor)}`; }
+    return `${PROGRESSIONS[plan.prog].name} od ${pcName(plan.keyPc, [5, 10, 3, 8, 1].includes(plan.keyPc))}`;
   }
 
   function renderBoard() {
     const c = chords[i];
     const style = VOICING_STYLES[plan.style];
+    const p = plan.real ? BANK_BY_ID[plan.real] : null;
     fill(board, 
-      el('div', { class: 'prog-name' }, `${PROGRESSIONS[plan.prog].name}, ${style.name.toLowerCase()}`),
+      p ? el('div', { class: 'prog-name' },
+        el('b', {}, p.name), ` · ${keyName(plan.keyPc, p.minor)} · ${style.name.toLowerCase()}`,
+        plan.n ? el('span', { class: 'prog-set' }, ` · ${FAMILIES[plan.fam]}: ${plan.k} z ${plan.n}`) : null,
+        plan.fresh ? el('span', { class: 'prog-new' }, 'nowa') : null)
+        : el('div', { class: 'prog-name' }, `${PROGRESSIONS[plan.prog].name}, ${style.name.toLowerCase()}`),
+      p ? el('p', { class: 'prog-about' }, el('span', { class: 'prog-rn' }, p.rn), ` ${p.about}`) : null,
       el('div', { class: 'chord-now' },
         el('div', { class: 'chord-symbol' }, c.symbol),
         el('div', { class: 'chord-what' }, `${CHORDS[c.type].name}: ${chordPcs(c.rootPc, c.type).map((pc) => pcName(pc, c.symbol.includes('♭'))).join(' ')}`)),
       el('div', { class: 'chord-strip' }, chords.map((x, k) => el('span', { class: `cs ${k < i ? 'done' : ''} ${k === i ? 'now' : ''}` }, x.symbol))),
-      el('p', { class: 'style-help' }, style.help));
+      el('p', { class: 'style-help' }, c.bass !== null && c.bass !== undefined ? `Akord z kreską (${c.symbol}): na dole ${pcName(c.bass, c.symbol.includes('♭'))}, nad nim akord w dowolnym układzie.` : style.help));
     tries = 0;
     hintUsed = false;
     wrongShown = false;
@@ -115,8 +150,9 @@ export function mount(stage, ctx) {
     if (notes.length < 2 || key === lastEvalKey) return;
     lastEvalKey = key;
     const c = chords[i];
-    const res = checkChord(notes, c.rootPc, c.type, plan.style);
+    const res = checkChord(notes, c.rootPc, c.type, plan.style, c.bass);
     ctx.keyboard.mark(notes.map((n) => {
+      if (c.bass != null && n === notes[0] && n % 12 === c.bass && !chordPcs(c.rootPc, c.type).includes(c.bass)) return { note: n, text: 'bas', tone: 'var(--role-1)' };
       const role = roleIn(n % 12, c.rootPc, c.type);
       return { note: n, text: role || '×', tone: role ? ROLE_TONE[role] : 'var(--bad)' };
     }));
@@ -172,7 +208,7 @@ export function mount(stage, ctx) {
       const bits = [];
       if (res.missing.length) bits.push(`brakuje: ${res.missing.map((pc) => pcName(pc, flat)).join(', ')}`);
       if (res.wrong.length) bits.push(`nie pasuje: ${res.wrong.map((pc) => pcName(pc, flat)).join(', ')}`);
-      if (!res.bassOk) bits.push(`na dole ma być ${pcName(c.rootPc, flat)}`);
+      if (!res.bassOk) bits.push(`na dole ma być ${pcName(c.bass != null ? c.bass : c.rootPc, flat)}`);
       lastWrong = bits.join('; ');
       setStatus(`Jeszcze nie: ${lastWrong}.`, 'bad', { kind: 'wrong', text: 'Puść klawisze i spróbuj jeszcze raz.' });
     }
@@ -192,15 +228,15 @@ export function mount(stage, ctx) {
   function hint() {
     if (!chords.length) return;
     const c = chords[i];
-    const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing);
-    ctx.keyboard.mark(v.map((n) => ({ note: n, text: roleIn(n % 12, c.rootPc, c.type), tone: ROLE_TONE[roleIn(n % 12, c.rootPc, c.type)] })));
+    const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing, c.bass);
+    ctx.keyboard.mark(v.map((n) => { const ro = roleIn(n % 12, c.rootPc, c.type); return { note: n, text: ro || 'bas', tone: ro ? ROLE_TONE[ro] : 'var(--role-1)' }; }));
     hintUsed = true;
   }
 
   function listen() {
     if (!chords.length) newRound();
     const c = chords[i];
-    const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing);
+    const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing, c.bass);
     hintUsed = true;
     looper.start(v.flatMap((n) => [{ t: 0, m: [0x90, n, 64] }, { t: 1.4, m: [0x80, n, 0] }]), 1.4, { lead: 0.1, gap: 0.8 }).catch(() => {});
   }
@@ -210,7 +246,7 @@ export function mount(stage, ctx) {
     let prev = null;
     const ev = [];
     chords.forEach((c, k) => {
-      const v = referenceVoicing(c.rootPc, c.type, plan.style, prev);
+      const v = referenceVoicing(c.rootPc, c.type, plan.style, prev, c.bass);
       prev = v;
       for (const n of v) { ev.push({ t: k * 1.1, m: [0x90, n, 62] }); ev.push({ t: k * 1.1 + 1.0, m: [0x80, n, 0] }); }
     });
@@ -220,7 +256,7 @@ export function mount(stage, ctx) {
   function addCard() {
     if (!plan) { start(); }
     const t = store.today();
-    store.data.cards.push({ id: store.newId(), type: 'chords', title: `${PROGRESSIONS[plan.prog].name} od ${pcName(plan.keyPc, [5, 10, 3, 8, 1].includes(plan.keyPc))}, ${VOICING_STYLES[plan.style].name.toLowerCase()}`, payload: { ...plan }, box: 0, due: t, created: t });
+    store.data.cards.push({ id: store.newId(), type: 'chords', title: `${planTitle()}, ${VOICING_STYLES[plan.style].name.toLowerCase()}`, payload: { real: plan.real, prog: plan.prog, keyPc: plan.keyPc, style: plan.style }, box: 0, due: t, created: t });
     store.save();
     setStatus('Dodane do fiszek.', 'good');
   }

@@ -168,6 +168,8 @@ def main():
             pg.click("nav >> text=Siłownia akordów")
             pg.get_by_role("button", name="Start", exact=True).click()
             pg.wait_for_timeout(400)
+            ok("chords: a real progression by default", pg.locator(".prog-about").count() == 1 and " z " in pg.inner_text(".prog-name"), pg.inner_text(".chord-board").replace("\n", " | "))
+            pg.screenshot(path=str(shots / "d04-akordy-bank.png"))
             for k in range(10):
                 pg.get_by_role("button", name="Posłuchaj", exact=True).click()
                 pg.wait_for_timeout(3300)

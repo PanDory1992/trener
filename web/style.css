@@ -210,6 +210,10 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--mode); }
 /* --- chords ----------------------------------------------------------------------------- */
 .chord-board { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 22px 26px; margin-bottom: 8px; }
 .prog-name { color: var(--ink-3); font-size: 15px; }
+.prog-name b { color: var(--ink); font-weight: 600; }
+.prog-new { margin-left: 8px; font-size: 12px; padding: 1px 7px; border-radius: 9px; background: var(--good); color: #10241a; vertical-align: 2px; }
+.prog-about { color: var(--ink-3); font-size: 14px; margin: 4px 0 0; max-width: 70ch; }
+.prog-rn { font-family: ui-monospace, monospace; color: var(--ink-2, var(--ink)); margin-right: 4px; }
 .chord-now { display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; margin: 6px 0 12px; }
 .chord-symbol { font: 800 96px/1 var(--display); letter-spacing: -0.03em; color: var(--mode); }
 .chord-what { color: var(--ink-2); font-size: 18px; }

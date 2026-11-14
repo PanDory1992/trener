@@ -2,12 +2,12 @@
 // 1.10: a score, one tip (the interval that was hardest), interval hints, more of the intervals you miss, series,
 // and a missed melody comes back a few melodies later.
 import * as bus from '../bus.js';
-import { cadenceEvents, contour, earMelody, motifEvents, noteName, plural, SCALES } from '../music.js';
+import { cadenceEvents, contour, earMelody, earVariation, motifEvents, noteName, plural, SCALES } from '../music.js';
 import * as store from '../store.js';
 import { el, status, fill, add } from '../ui.js';
 import { Looper, playEvents, seed } from './common.js';
 import { Coach, SAY } from '../drill.js';
-import { createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
+import { addLine, createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
 
 export const id = 'ucho';
 const HINTS = ['pierwszy dźwięk', 'interwał', 'rytm', 'następny dźwięk'];
@@ -34,22 +34,29 @@ export function mount(stage, ctx) {
   let counted = false;
   let auto = null;
   let missAt = [];          // mistakes per note of the melody
+  let debt = null;          // the rewanż being played
+  let fresh = 0;
+  const foundWell = [];     // melodies found without help: the source of variations
   const looper = new Looper();
   const coach = new Coach();
   const rec = store.mode(id);
   const ivStats = rec.iv || (rec.iv = { small: [0, 0], mid: [0, 0], large: [0, 0] });
+  const opt = rec.opts || (rec.opts = {});
 
   const drill = card ? null : createDrill(id, {
     title: 'Znajdź ze słuchu',
     about: 'Gram krótką melodię. Znajdź ją na klawiaturze, dźwięk po dźwięku, w dowolnej oktawie. Pomyłki są w porządku: szukanie to sedno. Podpowiedzi przychodzą po kolei: pierwszy dźwięk, interwał do następnego, rytm, następny dźwięk. Interwały, w których się mylisz, pojawiają się częściej.',
   });
   const head = card ? el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, card.title), el('p', { class: 'mode-sub' }, 'Fiszka: znajdź melodię.'))) : drill.head;
+  const opts = card ? null : el('div', { class: 'drill-opts' },
+    el('label', { title: 'Po melodii chwila ciszy: zaśpiewaj ją albo zanuć, dopiero potem szukaj.' },
+      el('input', { type: 'checkbox', checked: !!opt.sing, onchange: (e) => { opt.sing = e.target.checked; store.save(); } }), 'Najpierw zaśpiewaj'));
   const line = el('div', { class: 'status-wrap' }, status('Naciśnij Start albo C56.'));
   const dotsRow = el('div', { class: 'melody-dots' });
   const extra = el('div', { class: 'melody-extra' });
   const result = el('div', { class: 'result' });
   const dock = drillDock({ primary: 'Start', onPrimary: () => next(), onRepeat: () => replay(), onHint: () => hint(), more: [['Pokaż rozwiązanie', () => giveUp()]] });
-  add(stage, head, line, dotsRow, extra, result);
+  add(stage, head, opts, line, dotsRow, extra, result);
   ctx.dock(dock.node);
   const setStatus = (t, k = '', tip = null) => verdict(line, t, k, tip);
 
@@ -87,8 +94,11 @@ export function mount(stage, ctx) {
     let t0;
     // Pętla: the melody repeats until your first note
     try { t0 = await looper.start(ev, offset + m.seconds, { gap: 1.0 }); } catch { setStatus('Serwer Trenera nie odpowiada.', 'bad'); return; }
-    // you may start as soon as the last note sounds
-    bus.at(t0 + offset + m.starts[m.starts.length - 1] + 0.05, () => {
+    // you may start as soon as the last note sounds; with "Najpierw zaśpiewaj" after a silence as long as the melody
+    const sing = !card && opt.sing;
+    const singFor = sing ? m.seconds + 0.4 : 0;
+    if (sing) bus.at(t0 + offset + m.seconds - 0.05, () => { if (alive && !active) setStatus('Zaśpiewaj ją albo zanuć…', 'listen'); });
+    bus.at(t0 + offset + (sing ? m.seconds + singFor : m.starts[m.starts.length - 1] + 0.05), () => {
       if (!alive) return;
       active = true;
       setStatus(found ? `Szukaj dalej: dźwięk ${found + 1} z ${mel.notes.length}` : mel.showFirst ? `Zaczyna się od ${noteName(mel.notes[0].p, mel.flat, false)}. Szukaj dalej.` : 'Szukaj: od jakiego dźwięku to się zaczyna?', 'turn');
@@ -116,10 +126,21 @@ export function mount(stage, ctx) {
   function next() {
     clearTimeout(auto);
     if (card) { begin(mel); return; }
-    const lv = drill.axes().ucho;
-    const got = coach.take(() => earMelody(lv, seed(), { leapBias: leapBias() }));
     dock.setPrimary('Następne');
-    begin(got.item, got.comeback ? SAY.comeback : '');
+    const d = drill.debts.due();
+    if (d) {
+      debt = d;
+      coach.begin(d.item);
+      begin(d.item, 'Rewanż: melodia, która ostatnio nie wyszła.');
+      return;
+    }
+    const lv = drill.axes().ucho;
+    const got = coach.take(() => {
+      fresh++;
+      if (fresh % 4 === 0 && foundWell.length) return earVariation(foundWell[Math.floor(Math.random() * foundWell.length)], seed());
+      return earMelody(lv, seed(), { leapBias: leapBias() });
+    });
+    begin(got.item, got.comeback ? SAY.comeback : got.item.variation ? `Wariacja: znana melodia ${got.item.variation}.` : '');
   }
 
   function replay() { if (!mel) return next(); present(); }
@@ -165,13 +186,20 @@ export function mount(stage, ctx) {
         const score = gaveUp ? 0 : Math.max(0, 100 - 10 * mistakes - 15 * Math.max(0, hints - (mel.showFirst ? 0 : 1)));
         r = drill.counted({ ucho: score }, passed, tip);
       }
-      if (!card) coach.after(passed);   // a missed melody is queued to come back; no immediate retry in a search task
+      if (!card) {
+        const wasComeback = coach.isComeback;
+        coach.after(passed);   // a missed melody is queued to come back; no immediate retry in a search task
+        if (debt) { drill.debts.settle(debt, passed); debt = null; }
+        else if (!passed && !wasComeback && !mel.variation) drill.debts.add(mel);
+        if (passed && !mel.variation && foundWell.length < 12) foundWell.push(mel);
+      }
     }
     found = mel.notes.length;
     render();
     ctx.keyboard.mark(mel.notes.map((n, i) => ({ note: n.p, text: String(i + 1), tone: 'var(--c-ucho)' })));
     const title = mel.title ? ` To była melodia: ${mel.title}.` : '';
     setStatus(gaveUp ? `Oto rozwiązanie.${title}` : passed ? `Znalezione!${title}` : `Znalezione, z pomocą.${title}`, gaveUp ? '' : passed ? 'good' : 'bad', tip);
+    if (r && r.cold) addLine(line, `Zimny start dziś: ${r.score} pkt.`);
     if (r && r.summary) { fill(result, seriesCard(r.summary, drill.labels, () => next())); dock.setPrimary('Następna seria'); return; }
     if (!card && !gaveUp) { clearTimeout(auto); auto = setTimeout(() => alive && next(), 3800); }
     if (!card && !passed && store.data.settings.autoCards) {

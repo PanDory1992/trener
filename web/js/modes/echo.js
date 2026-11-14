@@ -1,18 +1,20 @@
 // 1. Echo: I play a motif, you play it back.
 // 1.10: three difficulty axes (melody, rhythm, dynamics), a score per axis, one tip, the error loop and series.
+// 1.11: "Najpierw zaśpiewaj", your own verdict first, details on demand, rewanż, variations, the border tempo, legato.
 import * as bus from '../bus.js';
-import { echoMotif, easierMotif, gradeEcho, motifEvents, noteName, SCALES } from '../music.js';
+import { echoMotif, easierMotif, gradeEcho, gradeLegato, motifEvents, noteName, SCALES, variedMotif } from '../music.js';
 import * as store from '../store.js';
 import { el, rollChart, status, toast, verdictChips, legend, fill, add } from '../ui.js';
 import { Capture, Looper, seed } from './common.js';
 import { loopOn } from '../loop.js';
-import { Coach, SAY } from '../drill.js';
-import { createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
+import { Coach, SAY, speedCurve } from '../drill.js';
+import { addLine, createDrill, details, drillDock, seriesCard, toggleDetails, verdict } from '../drillui.js';
 
 export const id = 'echo';
 const fmt = (x) => x.toFixed(1).replace('.', ',');
 const FOCUS = [['all', 'Wszystko'], ['melodia', 'Melodia'], ['rytm', 'Rytm'], ['dynamika', 'Dynamika']];
 const HANDS = [['right', 'Prawa'], ['left', 'Lewa']];
+const VARIATION_EVERY = 4;     // every 4th new motif is a variation of one you already played well
 
 export function mount(stage, ctx) {
   const card = ctx.card || null;
@@ -23,6 +25,9 @@ export function mount(stage, ctx) {
   let alive = true;
   let auto = null;
   let markTimer = null;
+  let debt = null;              // the rewanż being played
+  let fresh = 0;
+  const wellPlayed = [];        // motifs passed in this session: the source of variations
   const looper = new Looper();
   const coach = new Coach();
   const rec = store.mode(id);
@@ -30,7 +35,7 @@ export function mount(stage, ctx) {
 
   const drill = card ? null : createDrill(id, {
     title: 'Echo-nauczyciel',
-    about: 'Gram krótki motyw. Posłuchaj i zagraj go tak samo: te same dźwięki, ten sam rytm, a gdy dojdziesz do dynamiki, ta sama głośność. Melodia, rytm i dynamika mają osobne poziomy: łatwieje tylko to, co nie wyszło.',
+    about: 'Gram krótki motyw. Posłuchaj i zagraj go tak samo: te same dźwięki, ten sam rytm, a gdy dojdziesz do dynamiki, ta sama głośność. Melodia, rytm i dynamika mają osobne poziomy: łatwieje tylko to, co nie wyszło. Po próbie najpierw ty mówisz, jak poszło (C56 dobrze, C57 średnio, C58 źle), potem ja. Co czwarty nowy motyw to wariacja dobrze zagranego: w innej tonacji, oktawie albo drugą ręką. Wynik bywa wtedy niższy, ale tak utrwala się muzykę, a nie jeden ruch.',
     focus: () => opt.focus,
   });
   const head = card ? el('header', { class: 'mode-head' }, el('div', { class: 'mode-title' }, el('h1', {}, card.title), el('p', { class: 'mode-sub' }, 'Fiszka: powtórz motyw.'))) : drill.head;
@@ -45,14 +50,20 @@ export function mount(stage, ctx) {
   add(stage, head, opts, line, info, result);
   ctx.dock(dock.node);
 
+  const border = () => speedCurve(rec.speed || []).border;
   function seg(list, value, onPick) {
     return el('div', { class: 'seg-ctl tiny' }, list.map(([v, t]) => el('button', { class: v === value ? 'on' : '', onclick: () => onPick(v) }, t)));
   }
   function renderOpts() {
     if (!opts) return;
+    const b = border();
     fill(opts,
       el('label', {}, 'Ręka', seg(HANDS, opt.hand, (v) => { opt.hand = v; store.save(); renderOpts(); })),
-      el('label', {}, 'Ćwiczysz', seg(FOCUS, opt.focus, (v) => { opt.focus = v; store.save(); renderOpts(); drill.refresh(); })));
+      el('label', {}, 'Ćwiczysz', seg(FOCUS, opt.focus, (v) => { opt.focus = v; store.save(); renderOpts(); drill.refresh(); })),
+      el('label', { title: 'Po motywie pusty takt: zaśpiewaj go albo zanuć, dopiero potem graj.' },
+        el('input', { type: 'checkbox', checked: !!opt.sing, onchange: (e) => { opt.sing = e.target.checked; store.save(); } }), 'Najpierw zaśpiewaj'),
+      b ? el('label', { title: `Twoje tempo graniczne: ok. ${Math.round(b)} BPM. Ćwiczenie na 90% tego tempa utrwala bez sypania się.` },
+        el('input', { type: 'checkbox', checked: !!opt.tempo90, onchange: (e) => { opt.tempo90 = e.target.checked; store.save(); } }), `Tempo ${Math.round(b * 0.9)} BPM (90% granicy)`) : null);
   }
   renderOpts();
 
@@ -86,40 +97,61 @@ export function mount(stage, ctx) {
     if (m.easy) markMotif(m); else { clearTimeout(markTimer); ctx.keyboard.mark([]); }
     setStatus(note ? `${note} Słuchaj…` : 'Słuchaj…', 'listen');
     const sched = motifEvents(m, { countIn: 2 });
+    const sing = !card && opt.sing;
+    // "Najpierw zaśpiewaj": after the motif, as long again in silence to sing it back, then your turn
+    const singFor = sing ? sched.seconds - sched.starts[0] + 0.4 : 0;
     let t0;
     // Pętla: the motif repeats until your first note
-    try { t0 = await looper.start(sched.events, sched.seconds, { gap: 0.3 }); } catch { setStatus('Serwer Trenera nie odpowiada.', 'bad'); return; }
+    try { t0 = await looper.start(sched.events, sched.seconds, { gap: 0.3 + singFor }); } catch { setStatus('Serwer Trenera nie odpowiada.', 'bad'); return; }
     if (!alive) return;
     const lastStart = t0 + sched.starts[sched.starts.length - 1];
-    capture = new Capture({ notBefore: lastStart + 0.05, expected: m.notes.length, settle: Math.max(0.7, (60 / m.tempo) * 1.6), onUpdate: (notes) => {
+    const turnAt = t0 + sched.seconds + singFor;
+    capture = new Capture({ notBefore: (sing ? turnAt - 0.15 : lastStart + 0.05), expected: m.notes.length, settle: Math.max(0.7, (60 / m.tempo) * 1.6), onUpdate: (notes) => {
       setStatus(`Twoja kolej: ${notes.length} z ${m.notes.length}`, 'turn');
     } });
-    bus.at(t0 + sched.seconds - 0.05, () => { if (alive && phase === 'listen') { phase = 'turn'; setStatus(loopOn() ? 'Twoja kolej. Gram w pętli, aż zaczniesz.' : 'Twoja kolej', 'turn'); } });
+    if (sing) bus.at(t0 + sched.seconds - 0.05, () => { if (alive && phase === 'listen') { phase = 'sing'; setStatus('Zaśpiewaj go albo zanuć…', 'listen'); } });
+    bus.at(turnAt - 0.05, () => { if (alive && (phase === 'listen' || phase === 'sing')) { phase = 'turn'; setStatus(loopOn() ? 'Twoja kolej. Gram w pętli, aż zaczniesz.' : 'Twoja kolej', 'turn'); } });
     const notes = await capture.done;
     if (!alive || !notes) return;
     grade(m, notes);
   }
 
-  function grade(m, notes) {
+  async function grade(m, notes) {
     phase = 'result';
     const g = gradeEcho(m, notes);
     if (card) {
       setStatus(g.passed ? 'Jest! Dokładnie tak.' : 'Prawie.', g.passed ? 'good' : 'bad', g.tip);
-      showResult(m, g, null);
+      showResult(m, g, null, null);
       ctx.onResult && setTimeout(() => ctx.onResult(g.passed), 1600);
       return;
     }
+    const counts = coach.counts;
+    const scores = Object.fromEntries(drill.names.map((a) => [a, m.tested && m.tested.includes(a) ? g.scores[a] : null]));
+    // your own verdict first (only for attempts that count)
+    let self = null;
+    if (counts) { phase = 'ask'; self = await drill.ask(line); if (!alive) return; phase = 'result'; }
     const wasComeback = coach.isComeback;
     let rec2 = null;
-    if (coach.counts) {
-      const scores = Object.fromEntries(drill.names.map((a) => [a, m.tested && m.tested.includes(a) ? g.scores[a] : null]));
+    let selfLine = null;
+    if (counts) {
       rec2 = drill.counted(scores, g.passed, g.tip);
+      selfLine = drill.recordSelf(self, rec2.score, scores);
+      if (m.tested.includes('rytm')) { rec.speed = [...(rec.speed || []), [m.tempo, g.scores.rytm]].slice(-120); store.save(); }
     }
-    const decision = coach.after(g.passed);
+    let decision = coach.after(g.passed);
+    if (debt) { drill.debts.settle(debt, g.passed); debt = null; decision = 'next'; }
+    else if (counts && !g.passed && !wasComeback && !m.variation) drill.debts.add(motif);
     if (wasComeback && !g.passed) maybeAutoCard(motif);
-    setStatus(g.passed ? (m.easy ? 'Tak. Teraz w normalnym tempie.' : 'Jest! Dokładnie tak.') : 'Prawie.', g.passed ? 'good' : 'bad', g.tip);
-    if (g.tip && g.tip.mark) { ctx.keyboard.mark(g.tip.mark.map((x) => ({ ...x, tone: 'var(--c-echo)' }))); clearTimeout(markTimer); markTimer = setTimeout(() => ctx.keyboard.mark([]), 4000); }
-    showResult(m, g, rec2);
+    if (g.passed && !m.easy && !m.variation && wellPlayed.length < 12) wellPlayed.push(motif);
+    // legato on the higher melody levels: said when the notes and the rhythm were right
+    const lg = drill.axes().melodia >= 6 && !m.easy ? gradeLegato(m, g.aligned) : null;
+    const tip = g.passed && lg && lg.tip ? lg.tip : g.tip;
+    setStatus(g.passed ? (m.easy ? 'Tak. Teraz w normalnym tempie.' : 'Jest! Dokładnie tak.') : 'Prawie.', g.passed ? 'good' : 'bad', tip);
+    addLine(line, selfLine);
+    if (rec2 && rec2.cold) addLine(line, `Zimny start dziś: ${rec2.score} pkt.`);
+    if (tip && tip.mark) { ctx.keyboard.mark(tip.mark.map((x) => ({ ...x, tone: 'var(--c-echo)' }))); clearTimeout(markTimer); markTimer = setTimeout(() => ctx.keyboard.mark([]), 4000); }
+    showResult(m, g, rec2, lg);
+    renderOpts();
     if (rec2 && rec2.summary) { result.append(seriesCard(rec2.summary, drill.labels, () => next())); dock.setPrimary('Następna seria'); return; }
     dock.setPrimary('Następne');
     if (decision === 'next') later(next, g.passed ? 2600 : 3600);
@@ -128,17 +160,21 @@ export function mount(stage, ctx) {
     else if (decision === 'full') later(() => present(motif, SAY.full), 2600);
   }
 
-  function showResult(m, g, rec2) {
+  function showResult(m, g, rec2, lg) {
     const tempoWord = g.tempoRatio > 1.12 ? `szybciej o ${Math.round((g.tempoRatio - 1) * 100)}%` : g.tempoRatio < 0.88 ? `wolniej o ${Math.round((1 - g.tempoRatio) * 100)}%` : 'w tempie';
     const moved = rec2 ? drill.names.filter((a) => rec2.change.after[a] !== rec2.change.before[a]) : [];
-    fill(result,
+    const parts = [
       verdictChips([
         ['Nuty', g.pitchOk, g.pitchOk ? 'wszystkie' : `${g.perNote.filter((x) => x.ok).length} z ${m.notes.length}${g.extra ? `, ${g.extra} za dużo` : ''}`],
         ['Rytm', g.rhythmOk, g.rhythmOk ? `równo, ${tempoWord}` : `odchyłka ${Math.round(g.rhythmErr * 100)}% uderzenia`],
         m.withDynamics ? ['Dynamika', g.dynOk, g.dyn ? g.dyn.tips[0] : ''] : null,
+        lg && lg.known >= 2 ? ['Legato', lg.ok, lg.ok ? 'bez dziur' : lg.gaps.length ? `${lg.gaps.length} ${lg.gaps.length === 1 ? 'dziura' : 'dziury'}` : 'zamazane'] : null,
       ]),
       rollChart(m, g.aligned, g),
       legend([['want', 'wzór'], ['you-ok', 'twoje: dobrze'], ['you-bad', 'twoje: inaczej']]),
+    ];
+    fill(result,
+      card ? el('div', {}, parts) : details(id, parts),
       moved.length ? el('p', { class: 'level-change' }, moved.map((a) => `${drill.labels[a]} ${fmt(rec2.change.before[a])} → ${fmt(rec2.change.after[a])}`).join(' · ')) : null,
     );
   }
@@ -161,17 +197,34 @@ export function mount(stage, ctx) {
     toast('Dodane do fiszek. Wróci jutro.', 'good');
   }
 
+  function makeFresh() {
+    fresh++;
+    if (fresh % VARIATION_EVERY === 0 && wellPlayed.length) return variedMotif(wellPlayed[Math.floor(Math.random() * wellPlayed.length)], seed());
+    const m = echoMotif(drill.axes(), seed(), { preferBlack: !!(ctx.block && ctx.block.preferBlack), focus: opt.focus, hand: opt.hand });
+    const b = border();
+    if (opt.tempo90 && b) m.tempo = Math.max(50, Math.round(b * 0.9));
+    return m;
+  }
+
   function next() {
     clearTimeout(auto);
     if (card) { present(motif); return; }
-    const axes = drill.axes();
-    const got = coach.take(() => echoMotif(axes, seed(), { preferBlack: !!(ctx.block && ctx.block.preferBlack), focus: opt.focus, hand: opt.hand }));
-    motif = got.item;
     dock.setPrimary('Następne');
-    present(motif, got.comeback ? SAY.comeback : '');
+    // rewanż: what failed on an earlier day comes first, one shot
+    const d = drill.debts.due();
+    if (d) {
+      debt = d;
+      motif = d.tries ? easierMotif(d.item) : d.item;
+      coach.begin(motif);
+      present(motif, d.tries ? 'Rewanż, trochę wolniej. Jedno podejście.' : 'Rewanż: motyw, który ostatnio nie wyszedł. Jedno podejście.');
+      return;
+    }
+    const got = coach.take(makeFresh);
+    motif = got.item;
+    present(motif, got.comeback ? SAY.comeback : motif.variation ? `Wariacja: ten sam motyw ${motif.variation}.` : '');
   }
 
-  function primary() { if (phase !== 'listen') next(); }
+  function primary() { if (phase !== 'listen' && phase !== 'sing' && phase !== 'ask') next(); }
 
   function replay() {
     clearTimeout(auto);
@@ -180,6 +233,7 @@ export function mount(stage, ctx) {
   }
 
   function hint() {
+    if (phase === 'result' && toggleDetails(result)) return;
     if (!shown) return;
     markMotif(shown, 3500);
     setStatus('Podpowiedź na klawiszach: kolejne dźwięki motywu.', 'listen');
@@ -190,6 +244,7 @@ export function mount(stage, ctx) {
   return {
     onNote(e) { if (e.on && looper.active) looper.stop(); if (capture) capture.feed(e); },
     onPilot(a) {
+      if (drill && drill.pilotAnswer(a)) return;
       if (a === 'start') primary();
       if (a === 'repeat') replay();
       if (a === 'hint') hint();

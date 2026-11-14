@@ -7,7 +7,7 @@ import { curveChart, el, legend, status, verdictChips, fill, add } from '../ui.j
 import { Capture, Looper, seed } from './common.js';
 import { loopOn } from '../loop.js';
 import { Coach, SAY } from '../drill.js';
-import { createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
+import { addLine, createDrill, details, drillDock, seriesCard, toggleDetails, verdict } from '../drillui.js';
 
 export const id = 'dynamika';
 const fmt = (x) => x.toFixed(1).replace('.', ',');
@@ -19,6 +19,7 @@ export function mount(stage, ctx) {
   let phase = 'idle';
   let alive = true;
   let auto = null;
+  let debt = null;
   const looper = new Looper();
   const coach = new Coach();
 
@@ -70,15 +71,24 @@ export function mount(stage, ctx) {
     grade(p, got);
   }
 
-  function grade(p, got) {
+  async function grade(p, got) {
     phase = 'result';
     const g = gradeDynamics(p, got);
+    const counts = coach.counts;
+    let self = null;
+    if (counts) { phase = 'ask'; fill(live); self = await drill.ask(line); if (!alive) return; phase = 'result'; }
+    const wasComeback = coach.isComeback;
     let r = null;
-    if (coach.counts) r = drill.counted({ ksztalt: g.score }, g.passed, g.tip);
-    const decision = coach.after(g.passed);
+    let selfLine = null;
+    if (counts) { r = drill.counted({ ksztalt: g.score }, g.passed, g.tip); selfLine = drill.recordSelf(self, r.score, { ksztalt: g.score }); }
+    let decision = coach.after(g.passed);
+    if (debt) { drill.debts.settle(debt, g.passed); debt = null; decision = 'next'; }
+    else if (counts && !g.passed && !wasComeback) drill.debts.add(phrase);
     setStatus(g.passed ? (p.easy ? 'Tak. Teraz bez podglądu.' : 'Kształt złapany.') : 'Jeszcze nie ten kształt.', g.passed ? 'good' : 'bad', g.tip);
+    addLine(line, selfLine);
+    if (r && r.cold) addLine(line, `Zimny start dziś: ${r.score} pkt.`);
     fill(live);
-    fill(result,
+    fill(result, details(id, [
       verdictChips([
         ['Kształt', g.r >= 0.75 || g.ok, `zgodność ${Math.round(Math.max(0, g.r) * 100)}%`],
         ['Poziom', Math.abs(g.levelDiff) <= 22, g.levelDiff > 4 ? `głośniej o ${Math.round(g.levelDiff)}` : g.levelDiff < -4 ? `ciszej o ${Math.round(-g.levelDiff)}` : 'w punkt'],
@@ -87,7 +97,7 @@ export function mount(stage, ctx) {
         g.unknown ? ['Czarne „1”', null, `${g.unknown} bez oceny (dziura w klawiaturze)`] : null,
       ]),
       curveChart(g.target, g.user),
-      legend([['want-line', 'wzór'], ['you-line', 'ty']]),
+      legend([['want-line', 'wzór'], ['you-line', 'ty']])]),
       r && r.change.after.ksztalt !== r.change.before.ksztalt ? el('p', { class: 'level-change' }, `Poziom ${fmt(r.change.before.ksztalt)} → ${fmt(r.change.after.ksztalt)}`) : null,
     );
     if (r && r.summary) { result.append(seriesCard(r.summary, drill.labels, () => next())); dock.setPrimary('Następna seria'); return; }
@@ -100,15 +110,25 @@ export function mount(stage, ctx) {
 
   function next() {
     clearTimeout(auto);
+    dock.setPrimary('Następne');
+    const d = drill.debts.due();
+    if (d) {
+      debt = d;
+      phrase = d.item;
+      coach.begin(phrase);
+      present(phrase, 'Rewanż: fraza, która ostatnio nie wyszła. Jedno podejście.');
+      return;
+    }
     const lv = drill.axes().ksztalt;
     const got = coach.take(() => dynamicsPhrase(lv, seed()));
     phrase = got.item;
     dock.setPrimary('Następne');
     present(phrase, got.comeback ? SAY.comeback : '');
   }
-  function primary() { if (phase !== 'listen') next(); }
+  function primary() { if (phase !== 'listen' && phase !== 'ask') next(); }
   function replay() { clearTimeout(auto); if (!phrase) return next(); present(shown || phrase); }
   function hint() {
+    if (phase === 'result' && toggleDetails(result)) return;
     if (!shown) return;
     drawLive({ ...shown, easy: true }, []);
     setStatus(`Podpowiedź: ${SHAPES[shown.shape]}. Najciszej ok. ${Math.min(...shown.notes.map((n) => n.v))}, najgłośniej ${Math.max(...shown.notes.map((n) => n.v))}.`, 'listen');
@@ -117,6 +137,7 @@ export function mount(stage, ctx) {
   return {
     onNote(e) { if (e.on && looper.active) looper.stop(); if (capture) capture.feed(e); },
     onPilot(a) {
+      if (drill.pilotAnswer(a)) return;
       if (a === 'start') primary();
       if (a === 'repeat') replay();
       if (a === 'hint') hint();

@@ -91,7 +91,13 @@ export class Capture {
   }
 
   feed(e) {
-    if (this.closed || !e.on) return;
+    if (!e.on) {
+      // the release of a key you played here: kept for legato (1.11); it never ends the capture
+      const n = [...this.notes].reverse().find((x) => x.p === e.note && x.off == null);
+      if (n) n.off = e.ts;
+      return;
+    }
+    if (this.closed) return;
     if (e.ts < this.notBefore) { this.early++; return; }
     this.notes.push({ p: e.note, ts: e.ts, v: e.vel, raw: e.raw });
     if (this.onUpdate) this.onUpdate(this.notes);

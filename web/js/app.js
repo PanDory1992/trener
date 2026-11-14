@@ -28,6 +28,7 @@ import { pickDice, hints, firstNewToday } from './suggest.js';
 import { reviewBar, allSongs } from './reviewbar.js';
 import { createPedalCoach, VERDICT_TEXT } from './pedalcoach.js';
 import { measureLatency } from './modes/common.js';
+import { coldTrend } from './drill.js';
 
 const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, fiszki, wolne, kolo, jam, piosenki, palce };
 const MAIN = ['kolo', 'piosenki', 'jam'];
@@ -280,6 +281,7 @@ function renderHome(stage) {
             el('span', {}, w.label)))),
           el('p', { class: 'muted' }, `Dziś: ${fmtMin((store.data.days[store.today()] || {}).sec || 0)} grania.`)),
         seriesPanel(),
+        coldPanel(),
         weekPanel(),
         pedalPanel())),
     el('section', { class: 'modes-grid' }, NAV.map((id) => {
@@ -323,6 +325,23 @@ function seriesPanel() {
     el('h2', {}, 'Serie dziś'),
     el('ul', { class: 'series-list' }, list.slice(-6).reverse().map((x) => el('li', { style: { '--c': (MODES[x.id] || {}).color } },
       el('b', {}, `${(MODES[x.id] || {}).title || x.id}: `), `${x.ok} z ${x.n} udanych, średnio ${x.avg} pkt`))));
+}
+
+/** Cold start (1.11): the first attempt of the day per exercise against the days before. */
+function coldPanel() {
+  const today = store.today();
+  const rows = ['echo', 'dynamika', 'akordy', 'docelowe', 'ucho', 'aksak'].map((id) => {
+    const c = coldTrend(store.mode(id).cold, today);
+    return c.days.length ? { id, c } : null;
+  }).filter(Boolean);
+  if (!rows.length) return null;
+  return el('div', { class: 'panel' },
+    el('h2', {}, 'Zimny start'),
+    el('p', { class: 'muted' }, 'Pierwsza próba dnia, bez rozgrzewki: tyle zostało z poprzednich dni.'),
+    el('ul', { class: 'cold-list' }, rows.map(({ id, c }) => el('li', { style: { '--c': MODES[id].color } },
+      el('b', {}, `${MODES[id].title}: `),
+      c.today != null ? `dziś ${c.today}` : `ostatnio ${c.days[c.days.length - 1][1]}`,
+      c.prev != null ? `, wcześniej średnio ${c.prev}` : ''))));
 }
 
 function pedalPanel() {
@@ -486,6 +505,8 @@ function renderSettings(stage) {
       clickRow(row, s),
       row('Opóźnienie odsłuchu', 'Ile milisekund mija, zanim usłyszysz dźwięk. Odejmuję je od twoich uderzeń we wszystkich ćwiczeniach z rytmem (Aksak, Nuty docelowe, Graj ze mną). „Zmierz”: zagram 10 kliknięć, stukaj razem z nimi od trzeciego.',
         el('div', { class: 'lat-set' }, latInput, el('button', { class: 'btn small', onclick: () => measure() }, 'Zmierz'), latMsg)),
+      row('Najpierw oceniam sam', 'W Echu i Echu dynamiki po próbie najpierw ty mówisz, jak poszło (C56 dobrze, C57 średnio, C58 źle), potem Trener. Trener liczy, jak dobrze słyszysz siebie. Bez odpowiedzi przez 5 sekund idzie dalej.',
+        el('input', { type: 'checkbox', checked: s.selfCheck !== false, onchange: (e) => { s.selfCheck = e.target.checked; store.save(); } })),
       row('Fiszki z błędów', 'Motyw z Echa albo melodia Ze słuchu, które nie wyszły, same trafiają do fiszek (najwyżej 3 dziennie).',
         el('input', { type: 'checkbox', checked: s.autoCards, onchange: (e) => { s.autoCards = e.target.checked; store.save(); } })),
       row('Poziomy', 'Wyzeruj poziom jednego trybu, jeśli chcesz zacząć od nowa.',

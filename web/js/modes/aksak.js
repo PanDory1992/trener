@@ -4,7 +4,7 @@ import { aksakEvents, aksakPlan, easierAksak, gradeAksak, METERS, onsetsFromNote
 import * as store from '../store.js';
 import { el, status, svg, fill, add } from '../ui.js';
 import { Coach, SAY } from '../drill.js';
-import { createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
+import { addLine, createDrill, details, drillDock, seriesCard, toggleDetails, verdict } from '../drillui.js';
 import { playEvents, seed } from './common.js';
 import { loopOn } from '../loop.js';
 
@@ -38,7 +38,10 @@ export function mount(stage, ctx) {
       [['auto', 'Automatycznie (wg poziomu)'], ...Object.entries(METERS).map(([k, m]) => [k, `${m.name} (${m.groups.join('+')})`])].map(([v, t]) => el('option', { value: v, selected: v === meterChoice }, t)))),
   el('span', {}, `Opóźnienie odsłuchu: ${store.data.settings.latencyMs} ms`, ' ', el('button', { class: 'btn tiny ghost', onclick: () => ctx.go('settings') }, 'Zmierz w Ustawieniach')));
 
-  function hint() { setStatus('Licz na głos: TA-ki, TA-ki, TA-ki-ta. Trójka jest dłuższa, nie spiesz się w niej.', 'listen'); }
+  function hint() {
+    if ((!round || round.done) && toggleDetails(result)) return;
+    setStatus('Licz na głos: TA-ki, TA-ki, TA-ki-ta. Trójka jest dłuższa, nie spiesz się w niej.', 'listen');
+  }
 
   /** C56 / the main button: Start, Stop while a round plays, and after a round what the error loop proposes. */
   function primary() {
@@ -151,12 +154,13 @@ export function mount(stage, ctx) {
         : lr < 1.5 ? `skracasz trójkę (${lr.toFixed(2)} zamiast 1,5): zostań w niej dłużej`
           : `przeciągasz trójkę (${lr.toFixed(2)} zamiast 1,5)`;
     setStatus(g.passed ? 'Groove siedzi.' : decision === 'simplify' ? 'Jeszcze nie. Teraz trochę wolniej.' : 'Jeszcze nie.', g.passed ? 'good' : 'bad', g.tip);
-    fill(result, el('div', { class: 'chips' },
+    if (rr && rr.cold) addLine(line, `Zimny start dziś: ${rr.score} pkt.`);
+    fill(result, details(id, [el('div', { class: 'chips' },
       el('div', { class: `chip ${g.ratio >= 0.8 ? 'ok' : 'bad'}` }, el('span', { class: 'chip-dot' }), el('b', {}, 'Trafione'), el('span', {}, `${g.good} z ${g.total}`)),
       el('div', { class: `chip ${Math.abs(dev) <= 25 ? 'ok' : 'neutral'}` }, el('span', { class: 'chip-dot' }), el('b', {}, 'Średnio'), el('span', {}, Math.abs(dev) <= 8 ? 'równo z basem' : dev > 0 ? `${dev} ms za basem` : `${-dev} ms przed basem`)),
       el('div', { class: `chip ${lr !== null && Math.abs(lr - 1.5) <= 0.1 ? 'ok' : 'bad'}` }, el('span', { class: 'chip-dot' }), el('b', {}, 'Długa miara'), el('span', {}, longWord)),
       g.extra ? el('div', { class: 'chip neutral' }, el('span', { class: 'chip-dot' }), el('b', {}, 'Dodatkowe'), el('span', {}, `${g.extra} uderzeń poza basem`)) : null),
-    driftChart(g, round.sched),
+    driftChart(g, round.sched)]),
     moved.length ? el('p', { class: 'level-change' }, moved.map((a) => `${drill.labels[a]} ${fmt(rr.change.before[a])} → ${fmt(rr.change.after[a])}`).join(' · ')) : null,
     rr && rr.summary ? seriesCard(rr.summary, drill.labels, () => { decision = 'next'; fresh(); }) : null);
     dock.setPrimary({ retry: 'Jeszcze raz', simplify: 'Wolniej', full: 'W tempie', next: 'Następna runda' }[decision] || 'Start');

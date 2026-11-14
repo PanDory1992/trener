@@ -159,6 +159,67 @@ export function echoMotif(level, seed, opts = {}) {
   return { kind: 'motif', level: L, scale, rootPc, tempo, notes, withDynamics, flat: keyPrefersFlat(rootPc), focus, hand: opts.hand || 'right', tested };
 }
 
+/**
+ * A variation of a motif you already played well (1.11): in another key, another octave or with the other hand.
+ * Tests the music, not the memory of one movement.
+ */
+export function variedMotif(m, seed) {
+  const r = rng(seed);
+  const kinds = ['key', 'key', 'octave', 'hand'];
+  const kind = r.pick(kinds);
+  let shift = 0;
+  let text = '';
+  let hand = m.hand || 'right';
+  if (kind === 'key') {
+    shift = r.pick([2, 5, 7, -2, -5, -3]);
+  } else if (kind === 'octave') {
+    shift = hand === 'left' ? -12 : 12;
+    if (Math.max(...m.notes.map((n) => n.p)) + shift > 84 || Math.min(...m.notes.map((n) => n.p)) + shift < 36) shift = -shift;
+    text = shift > 0 ? 'oktawę wyżej' : 'oktawę niżej';
+  } else {
+    hand = hand === 'left' ? 'right' : 'left';
+    shift = hand === 'left' ? -12 : 12;
+    text = hand === 'left' ? 'lewą ręką' : 'prawą ręką';
+  }
+  const rootPc = (((m.rootPc || 0) + shift) % 12 + 12) % 12;
+  const flat = keyPrefersFlat(rootPc);
+  if (kind === 'key') text = `od ${pcName(m.notes[0].p + shift, flat)}`;
+  return { ...m, notes: m.notes.map((n) => ({ ...n, p: n.p + shift })), rootPc, flat, hand, variation: text, easy: false };
+}
+
+/** A melody you found, in another key (1.11). */
+export function earVariation(mel, seed) {
+  const r = rng(seed);
+  const shift = r.pick([2, 5, 7, -3, -5]);
+  const rootPc = (((mel.rootPc || 0) + shift) % 12 + 12) % 12;
+  const flat = keyPrefersFlat(rootPc);
+  return { ...mel, notes: mel.notes.map((n) => ({ ...n, p: n.p + shift })), rootPc, flat, showFirst: false, variation: `od ${pcName(mel.notes[0].p + shift, flat)}` };
+}
+
+/**
+ * Legato (1.11): between two notes of a phrase, did you let go too early (a gap you can hear) or hold on too long
+ * (a smear)? attempt notes need .ts and .off (seconds; off null = still held when graded). Only pairs where the
+ * written note is at most 2 beats long are judged.
+ */
+export function gradeLegato(motif, attempt, { gapMax = 0.06, blurMax = 0.25 } = {}) {
+  const gaps = [], blurs = [];
+  let known = 0;
+  for (let i = 0; i + 1 < Math.min(motif.notes.length, attempt.length); i++) {
+    if (motif.notes[i].dur > 2) continue;
+    const a = attempt[i], b = attempt[i + 1];
+    if (a.off == null || b.ts == null) continue;
+    known++;
+    const gap = b.ts - a.off;
+    if (gap > gapMax) gaps.push(i);
+    else if (-gap > blurMax) blurs.push(i);
+  }
+  const ok = known >= 2 && !gaps.length && !blurs.length;
+  const score = known ? Math.round(100 * (known - gaps.length - blurs.length) / known) : null;
+  const tip = gaps.length ? { kind: 'gap', text: `Między ${gaps[0] + 1}. a ${gaps[0] + 2}. dźwiękiem cisza: trzymaj klawisz, aż zagrasz następny.` }
+    : blurs.length ? { kind: 'blur', text: `${blurs[0] + 1}. dźwięk trzymasz za długo: puść go razem z następnym.` } : null;
+  return { known, gaps, blurs, ok, score, tip };
+}
+
 /** The same motif, easier: slower (the error loop's "simplify" step). */
 export function easierMotif(m) {
   return { ...m, tempo: Math.max(50, Math.round(m.tempo * 0.8)), easy: true };

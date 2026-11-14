@@ -1125,3 +1125,19 @@ body.compact .dock-stack > .play-row, body.compact .dock-stack > .actions { flex
 .series-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .series-list li { border-left: 3px solid var(--c, var(--mode)); padding-left: 10px; color: var(--ink-2); }
 .series-list b { color: var(--ink); }
+/* 1.11: stage 2 of the exercises */
+.self-ask { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+.self-ask .btn { display: inline-flex; gap: 8px; align-items: center; font-size: 17px; }
+.self-ask kbd, .drill-detail kbd { font-size: 11px; background: #1e1a36; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--ink-3); }
+.self-ask .self-good { border-color: var(--good); } .self-ask .self-bad { border-color: #5a2a3f; }
+.self-line { color: var(--ink-3); margin: 4px 0 0; font-size: 15px; }
+.drill-detail { margin: 4px 0 12px; }
+.drill-detail > summary { cursor: pointer; color: var(--ink-3); font-size: 14px; display: inline-flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.ds-line { color: var(--ink-2); margin: 0 0 8px; }
+.speed-bars { display: flex; align-items: flex-end; gap: 4px; height: 70px; margin: 4px 0 12px; }
+.speed-bars span { flex: 0 0 26px; background: #3a3360; border-radius: 4px 4px 0 0; position: relative; }
+.speed-bars span.ok { background: var(--mode); }
+.speed-bars i { position: absolute; bottom: -16px; left: 0; right: 0; text-align: center; font: 10px var(--text); color: var(--ink-3); font-style: normal; }
+.cold-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cold-list li { color: var(--ink-2); border-left: 3px solid var(--c, var(--mode)); padding-left: 10px; }
+.cold-list b { color: var(--ink); }

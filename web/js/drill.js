@@ -170,3 +170,74 @@ export function rung(ladder, level) {
   }
   return { now: now[1], next: next ? next[1] : null, nextAt: next ? next[0] : null };
 }
+
+// --- stage 2 (1.11) ----------------------------------------------------------------------------------------------------
+/** Your own verdict vs the real one: 'good' (≥ PASS), 'mid' (50–79), 'bad'. */
+export function selfBand(score) { return score >= PASS ? 'good' : score >= 50 ? 'mid' : 'bad'; }
+const BAND = { bad: 0, mid: 1, good: 2 };
+
+/**
+ * How well you hear yourself. list: [{self, actual, weak}] (weak = the axis with the lowest score).
+ * Returns {n, hits, rate, over, under, weakest} — weakest: the axis you most often think went well when it did not.
+ */
+export function selfStats(list) {
+  const xs = (list || []).filter((x) => x && x.self && x.actual);
+  const hits = xs.filter((x) => x.self === x.actual).length;
+  const overs = xs.filter((x) => BAND[x.self] > BAND[x.actual]);
+  const count = new Map();
+  for (const x of overs) if (x.weak) count.set(x.weak, (count.get(x.weak) || 0) + 1);
+  let weakest = null;
+  for (const [k, v] of count) if (!weakest || v > weakest.n) weakest = { axis: k, n: v };
+  return { n: xs.length, hits, rate: xs.length ? hits / xs.length : null, over: overs.length, under: xs.filter((x) => BAND[x.self] < BAND[x.actual]).length, weakest };
+}
+
+/**
+ * Cold start: the first counted attempt of each day. cold: {date: score}. Returns {today, prev, days} where prev is the
+ * mean of the up to 7 days before today and days the last 7 [date, score] in order.
+ */
+export function coldTrend(cold, today) {
+  const days = Object.entries(cold || {}).sort((a, b) => a[0].localeCompare(b[0])).slice(-8);
+  const before = days.filter(([d]) => d < today).slice(-7);
+  const prev = before.length ? Math.round(before.reduce((s, [, v]) => s + v, 0) / before.length) : null;
+  return { today: (cold || {})[today] ?? null, prev, days: days.slice(-7) };
+}
+
+/**
+ * Rewanż: what failed on an earlier day comes first, one shot. debts: [{item, day, tries}].
+ * due(debts, today) → the oldest debt from before today (or null).
+ * settle(debts, debt, passed, today) → the new list: passed → gone; failed → stays for tomorrow (tries + 1),
+ * dropped after 3 failed rewanże (it already went to the cards).
+ */
+export function dueDebt(debts, today) {
+  return (debts || []).filter((d) => d.day < today).sort((a, b) => a.day.localeCompare(b.day))[0] || null;
+}
+export function settleDebt(debts, debt, passed, today) {
+  const rest = (debts || []).filter((d) => d !== debt);
+  if (passed || (debt.tries || 0) >= 2) return rest;
+  return [...rest, { ...debt, day: today, tries: (debt.tries || 0) + 1 }];
+}
+export function addDebt(debts, item, today, max = 5) {
+  return [...(debts || []), { item, day: today, tries: 0 }].slice(-max);
+}
+
+/**
+ * Speed vs accuracy: points [[tempo, score]] in 8-BPM bins. border = the fastest bin (≥ 2 attempts) whose mean is
+ * still ≥ PASS, below the first slower-than-it failing bin. Returns {bins: [{tempo, avg, n}], border}.
+ */
+export function speedCurve(points, width = 8) {
+  const by = new Map();
+  for (const [t, s] of points || []) {
+    const b = Math.floor(t / width) * width;
+    const v = by.get(b) || { tempo: b, sum: 0, n: 0 };
+    v.sum += s; v.n++;
+    by.set(b, v);
+  }
+  const bins = [...by.values()].sort((a, b) => a.tempo - b.tempo).map((v) => ({ tempo: v.tempo, avg: Math.round(v.sum / v.n), n: v.n }));
+  let border = null;
+  for (const b of bins) {
+    if (b.n < 2) continue;
+    if (b.avg >= PASS) border = b.tempo + width / 2;
+    else if (border !== null) break;
+  }
+  return { bins, border };
+}

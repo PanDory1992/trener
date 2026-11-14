@@ -3,7 +3,7 @@ import * as bus from '../bus.js';
 import { checkChord, chordGymPlan, chordPcs, CHORDS, movement, pcName, progressionChords, PROGRESSIONS, referenceVoicing, roleIn, VOICING_STYLES } from '../music.js';
 import * as store from '../store.js';
 import { el, status, fill, add } from '../ui.js';
-import { createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
+import { addLine, createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
 import { Looper, playEvents, seed } from './common.js';
 
 export const id = 'akordy';
@@ -145,6 +145,7 @@ export function mount(stage, ctx) {
       }
       prevVoicing = notes;
       setStatus(passed ? 'Dobrze!' : 'Jest.', 'good', tip);
+      if (r && r.cold) addLine(line, `Zimny start dziś: ${r.score} pkt.`);
       renderStats();
       if (r && r.summary) fill(summaryBox, seriesCard(r.summary, drill.labels, () => { fill(summaryBox); }));
       setTimeout(() => {

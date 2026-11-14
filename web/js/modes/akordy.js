@@ -1,7 +1,9 @@
 // 4. Chord gym: I show a chord, you play it in the asked voicing.
 import * as bus from '../bus.js';
 import { checkChord, chordGymPlan, chordPcs, CHORDS, movement, pcName, progressionChords, PROGRESSIONS, referenceVoicing, rng, roleIn, VOICING_STYLES } from '../music.js';
-import { BANK_BY_ID, bankChords, bankStyle, FAMILIES, keyName, nextSet, setTonic } from '../progbank.js';
+import { BANK_BY_ID, bankChords, bankStyle, FAMILIES, keyName, nextSet, PASS_SAY, secondPass, setTonic, withSevenths } from '../progbank.js';
+import { bottomWord, closestInversions, INV_NAMES, invPlan, invStage, invSymbol } from '../inversions.js';
+import { stepLevel } from '../drill.js';
 import * as store from '../store.js';
 import { el, status, fill, add } from '../ui.js';
 import { addLine, createDrill, drillDock, seriesCard, verdict } from '../drillui.js';
@@ -59,22 +61,43 @@ export function mount(stage, ctx) {
     const sel = (label, value, options, onchange) => el('label', {}, label,
       el('select', { onchange: (e) => onchange(e.target.value) }, options.map(([v, t]) => el('option', { value: v, selected: v === value }, t))));
     fill(controls, 
-      sel('Wybór', manual ? 'manual' : pick, [['real', 'Prawdziwe progresje (wg poziomu)'], ['auto', 'Ćwiczenia ii–V–I i pop (wg poziomu)'], ['manual', 'Sam wybieram']], (v) => {
+      sel('Wybór', manual ? 'manual' : pick, [['real', 'Prawdziwe progresje (wg poziomu)'], ['inv', 'Przewroty (od podstaw)'], ['auto', 'Ćwiczenia ii–V–I i pop (wg poziomu)'], ['manual', 'Sam wybieram']], (v) => {
         manual = v === 'manual' ? (manual || { prog: 'twoFiveOne', style: 'any', keyPc: 0 }) : null;
         if (v !== 'manual') pick = v;
         Object.assign(store.mode(id), { manual, pick }); store.save(); renderControls();
+        if (started) { newRound(); setStatus('Zagraj akord i trzymaj chwilę.', 'turn'); }
       }),
+      // 1.13: any inversion is fine where nothing says what goes at the bottom
+      !manual && pick === 'inv' ? null : el('label', { class: 'check', title: 'Włączone: akord możesz zagrać w dowolnym przewrocie, na dole dowolny jego dźwięk. Akord z kreską (np. G/B) i tak mówi, co ma być na dole.' },
+        el('input', { type: 'checkbox', checked: anyInv(), onchange: (e) => { store.mode(id).anyInv = e.target.checked; store.save(); if (started) renderBoard(); } }), ' Dowolny przewrót'),
       manual ? sel('Progresja', manual.prog, Object.entries(PROGRESSIONS).map(([k, p]) => [k, p.name]), (v) => { manual.prog = v; fixStyle(); store.save(); renderControls(); }) : null,
       manual ? sel('Układ', manual.style, Object.entries(VOICING_STYLES).filter(([k]) => PROGRESSIONS[manual.prog].sevenths || k === 'any' || k === 'rootBass').map(([k, s]) => [k, s.name]), (v) => { manual.style = v; store.save(); }) : null,
       manual ? sel('Tonacja', String(manual.keyPc), [0, 7, 2, 9, 4, 11, 6, 5, 10, 3, 8, 1].map((pc) => [String(pc), pcName(pc, [5, 10, 3, 8, 1].includes(pc))]), (v) => { manual.keyPc = Number(v); store.save(); }) : null,
     );
   }
+  function anyInv() { return store.mode(id).anyInv !== false; }
   function fixStyle() { if (!PROGRESSIONS[manual.prog].sevenths && !['any', 'rootBass'].includes(manual.style)) manual.style = 'any'; }
 
   function newRound() {
     if (card) plan = card.payload;
-    else plan = manual ? { ...manual } : pick === 'real' ? bankPlan() : chordGymPlan(store.mode(id).level, seed());
-    chords = plan.real ? bankChords(plan.real, plan.keyPc) : progressionChords(plan.prog, plan.keyPc);
+    else plan = manual ? { ...manual } : pick === 'real' ? bankPlan() : pick === 'inv' ? { inv: true, style: 'any' } : chordGymPlan(store.mode(id).level, seed());
+    if (plan.inv) {
+      const lv = store.mode(id).invLevel || 1;
+      const r = invPlan(lv, rng(seed()));
+      Object.assign(plan, { title: r.title, stage: r.stage, level: lv });
+      chords = r.chords;
+    } else if (plan.real) {
+      const first = bankChords(plan.real, plan.keyPc).map((c) => ({ ...c, pass: 1 }));
+      chords = first;
+      const kind = card ? null : secondPass(BANK_BY_ID[plan.real], store.mode(id).level || 1, rng(seed()));
+      plan.second = kind;
+      if (kind === 'same') chords = [...first, ...first.map((c) => ({ ...c, pass: 2 }))];
+      if (kind === 'sevenths') chords = [...first, ...bankChords(plan.real, plan.keyPc, withSevenths(BANK_BY_ID[plan.real])).map((c) => ({ ...c, pass: 2 }))];
+      if (kind === 'closer') {
+        const flat = first.some((c) => c.symbol.includes('♭'));
+        chords = [...first, ...closestInversions(first).map((c) => ({ ...c, symbol: invSymbol(c.rootPc, c.type, c.inv, flat), pass: 2 }))];
+      }
+    } else chords = progressionChords(plan.prog, plan.keyPc);
     i = 0;
     renderBoard();
   }
@@ -103,22 +126,48 @@ export function mount(stage, ctx) {
     return `${PROGRESSIONS[plan.prog].name} od ${pcName(plan.keyPc, [5, 10, 3, 8, 1].includes(plan.keyPc))}`;
   }
 
+  /** The style actually checked: with "Dowolny przewrót" on, the root need not be at the bottom. */
+  function effStyle() { return anyInv() && plan.style === 'rootBass' ? 'any' : plan.style; }
+  function styleHelp(style) {
+    if (anyInv() && ['any', 'rootBass'].includes(plan.style)) return 'Wszystkie dźwięki akordu, w dowolnej kolejności i w dowolnym przewrocie. W akordach septymowych kwintę możesz pominąć.';
+    if (anyInv() && plan.style === 'shell') return 'Tylko pryma, tercja i septyma, w dowolnej kolejności. Tak gra lewa ręka w jazzie.';
+    return style.help;
+  }
+
   function renderBoard() {
     const c = chords[i];
     const style = VOICING_STYLES[plan.style];
     const p = plan.real ? BANK_BY_ID[plan.real] : null;
+    const flat = c.symbol.includes('♭');
+    const hasBass = c.bass !== null && c.bass !== undefined;
+    const inChord = hasBass && chordPcs(c.rootPc, c.type).includes(c.bass);
+    const invIdx = inChord ? chordPcs(c.rootPc, c.type).indexOf(c.bass) : -1;
+    const base = pcName(c.rootPc, flat) + CHORDS[c.type].sym;
+    // what goes at the bottom, said plainly (1.13): "Na dole E (tercja). Nad nim reszta C-dur: C, G."
+    const bassLine = hasBass ? el('div', { class: 'bass-line' },
+      el('span', { class: 'bl-bottom' }, `Na dole: ${pcName(c.bass, flat)}`),
+      el('span', { class: 'bl-what' }, inChord ? ` (${INV_NAMES[invIdx]}: ${bottomWord(c.rootPc, c.type, invIdx, flat).split(' ')[0]} akordu).` : ' (dźwięk spoza akordu: bas idzie swoją drogą).'),
+      el('span', { class: 'bl-top' }, ` Nad nim reszta akordu ${base}: ${chordPcs(c.rootPc, c.type).filter((pc) => pc !== c.bass).map((pc) => pcName(pc, flat)).join(', ')}, w dowolnej kolejności.`)) : null;
+    const strip = [];
+    chords.forEach((x, k) => {
+      if (k > 0 && x.pass === 2 && chords[k - 1].pass === 1) strip.push(el('span', { class: 'cs-sep' }, plan.second === 'sevenths' ? 'drugi raz z septymami' : plan.second === 'closer' ? 'drugi raz w przewrotach' : 'drugi raz'));
+      strip.push(el('span', { class: `cs ${k < i ? 'done' : ''} ${k === i ? 'now' : ''}` }, x.symbol));
+    });
     fill(board, 
+      plan.inv ? el('div', { class: 'prog-name' }, el('b', {}, 'Przewroty'), ` · ${plan.stage.name} · ${plan.title} · poziom ${plan.level.toFixed(1).replace('.', ',')}`) : null,
+      plan.inv ? el('p', { class: 'prog-about' }, plan.stage.about) : null,
       p ? el('div', { class: 'prog-name' },
         el('b', {}, p.name), ` · ${keyName(plan.keyPc, p.minor)} · ${style.name.toLowerCase()}`,
         plan.n ? el('span', { class: 'prog-set' }, ` · ${FAMILIES[plan.fam]}: ${plan.k} z ${plan.n}`) : null,
         plan.fresh ? el('span', { class: 'prog-new' }, 'nowa') : null)
-        : el('div', { class: 'prog-name' }, `${PROGRESSIONS[plan.prog].name}, ${style.name.toLowerCase()}`),
+        : plan.inv ? null : el('div', { class: 'prog-name' }, `${PROGRESSIONS[plan.prog].name}, ${style.name.toLowerCase()}`),
       p ? el('p', { class: 'prog-about' }, el('span', { class: 'prog-rn' }, p.rn), ` ${p.about}`) : null,
       el('div', { class: 'chord-now' },
         el('div', { class: 'chord-symbol' }, c.symbol),
-        el('div', { class: 'chord-what' }, `${CHORDS[c.type].name}: ${chordPcs(c.rootPc, c.type).map((pc) => pcName(pc, c.symbol.includes('♭'))).join(' ')}`)),
-      el('div', { class: 'chord-strip' }, chords.map((x, k) => el('span', { class: `cs ${k < i ? 'done' : ''} ${k === i ? 'now' : ''}` }, x.symbol))),
-      el('p', { class: 'style-help' }, c.bass !== null && c.bass !== undefined ? `Akord z kreską (${c.symbol}): na dole ${pcName(c.bass, c.symbol.includes('♭'))}, nad nim akord w dowolnym układzie.` : style.help));
+        el('div', { class: 'chord-what' }, `${CHORDS[c.type].name}: ${chordPcs(c.rootPc, c.type).map((pc) => pcName(pc, flat)).join(' ')}`)),
+      bassLine,
+      el('div', { class: 'chord-strip' }, strip),
+      hasBass ? null : el('p', { class: 'style-help' }, styleHelp(style)));
     tries = 0;
     hintUsed = false;
     wrongShown = false;
@@ -150,7 +199,7 @@ export function mount(stage, ctx) {
     if (notes.length < 2 || key === lastEvalKey) return;
     lastEvalKey = key;
     const c = chords[i];
-    const res = checkChord(notes, c.rootPc, c.type, plan.style, c.bass);
+    const res = checkChord(notes, c.rootPc, c.type, effStyle(), c.bass, { freeBass: anyInv() && plan.style === 'shell' });
     ctx.keyboard.mark(notes.map((n) => {
       if (c.bass != null && n === notes[0] && n % 12 === c.bass && !chordPcs(c.rootPc, c.type).includes(c.bass)) return { note: n, text: 'bas', tone: 'var(--role-1)' };
       const role = roleIn(n % 12, c.rootPc, c.type);
@@ -177,7 +226,12 @@ export function mount(stage, ctx) {
         // a card passes when every chord of the progression is right the first time
         card._fails = (card._fails || 0) + (passed ? 0 : 1);
       } else {
-        r = drill.counted({ akordy: score }, passed, tip);
+        if (plan.inv) {
+          // the Przewroty mode keeps its own level; the series still counts it
+          const rec = store.mode(id);
+          rec.invLevel = stepLevel(rec.invLevel || 1, score);
+          r = drill.counted({ przewroty: score }, passed, tip);
+        } else r = drill.counted({ akordy: score }, passed, tip);
       }
       prevVoicing = notes;
       setStatus(passed ? 'Dobrze!' : 'Jest.', 'good', tip);
@@ -191,7 +245,10 @@ export function mount(stage, ctx) {
           if (card) { ctx.onResult && ctx.onResult(!card._fails); return; }
           newRound();
           setStatus('Nowa runda.', 'turn');
-        } else renderBoard();
+        } else {
+          renderBoard();
+          if (chords[i].pass === 2 && chords[i - 1].pass === 1) setStatus(PASS_SAY[plan.second], 'turn');
+        }
       }, 450);
     } else if (notes.length >= Math.min(3, chordPcs(c.rootPc, c.type).length) || res.wrong.length) {
       // still building the chord? say "not yet" only if the hand stays put a moment longer
@@ -228,7 +285,7 @@ export function mount(stage, ctx) {
   function hint() {
     if (!chords.length) return;
     const c = chords[i];
-    const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing, c.bass);
+    const v = c.voicing || referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing, c.bass);
     ctx.keyboard.mark(v.map((n) => { const ro = roleIn(n % 12, c.rootPc, c.type); return { note: n, text: ro || 'bas', tone: ro ? ROLE_TONE[ro] : 'var(--role-1)' }; }));
     hintUsed = true;
   }
@@ -236,7 +293,7 @@ export function mount(stage, ctx) {
   function listen() {
     if (!chords.length) newRound();
     const c = chords[i];
-    const v = referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing, c.bass);
+    const v = c.voicing || referenceVoicing(c.rootPc, c.type, plan.style, prevVoicing, c.bass);
     hintUsed = true;
     looper.start(v.flatMap((n) => [{ t: 0, m: [0x90, n, 64] }, { t: 1.4, m: [0x80, n, 0] }]), 1.4, { lead: 0.1, gap: 0.8 }).catch(() => {});
   }
@@ -246,7 +303,7 @@ export function mount(stage, ctx) {
     let prev = null;
     const ev = [];
     chords.forEach((c, k) => {
-      const v = referenceVoicing(c.rootPc, c.type, plan.style, prev, c.bass);
+      const v = c.voicing || referenceVoicing(c.rootPc, c.type, plan.style, prev, c.bass);
       prev = v;
       for (const n of v) { ev.push({ t: k * 1.1, m: [0x90, n, 62] }); ev.push({ t: k * 1.1 + 1.0, m: [0x80, n, 0] }); }
     });
@@ -255,6 +312,7 @@ export function mount(stage, ctx) {
 
   function addCard() {
     if (!plan) { start(); }
+    if (plan.inv) { setStatus('Fiszki są dla progresji. Przewroty ćwiczysz tutaj.', 'listen'); return; }
     const t = store.today();
     store.data.cards.push({ id: store.newId(), type: 'chords', title: `${planTitle()}, ${VOICING_STYLES[plan.style].name.toLowerCase()}`, payload: { real: plan.real, prog: plan.prog, keyPc: plan.keyPc, style: plan.style }, box: 0, due: t, created: t });
     store.save();

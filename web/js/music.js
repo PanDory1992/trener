@@ -520,7 +520,7 @@ export function roleIn(pc, rootPc, type) {
 }
 
 /** Check a played chord (MIDI notes held together) against a target. */
-export function checkChord(notes, rootPc, type, style = 'any', bassPc = null) {
+export function checkChord(notes, rootPc, type, style = 'any', bassPc = null, { freeBass = false } = {}) {
   // a slash chord (1.12): the named bass at the bottom, the chord above in any voicing
   if (bassPc !== null && bassPc !== undefined) {
     const sorted = [...new Set(notes)].sort((a, b) => a - b);
@@ -554,7 +554,7 @@ export function checkChord(notes, rootPc, type, style = 'any', bassPc = null) {
   }
   const missing = required.filter((pc) => !pcs.has(pc));
   const wrong = [...pcs].filter((pc) => !allowed.has(pc));
-  const bassOk = bassRule === null || bass === bassRule;
+  const bassOk = bassRule === null || freeBass || bass === bassRule;   // freeBass (1.13): any inversion is fine
   const ok = sorted.length >= 2 && missing.length === 0 && wrong.length === 0 && bassOk;
   return { ok, missing, wrong, bassOk, notes: sorted, extra: [...new Set(extra)] };
 }

@@ -177,6 +177,19 @@ def main():
             summ = pg.inner_text(".drill-summary")
             ok("chords: series summary after 10", "Seria:" in summ and "z 10" in summ and "Akordy" in summ, summ.replace("\n", " | "))
             pg.screenshot(path=str(shots / "d05-akordy-summary.png"))
+            ok("chords: 'Dowolny przewrót' switch", pg.locator("label.check", has_text="Dowolny przewrót").count() == 1)
+            # --- Przewroty: the bottom note said plainly, and the mode plays through ------------------------
+            pg.locator(".drill-opts select").first.select_option("inv")
+            pg.wait_for_timeout(400)
+            board = pg.inner_text(".chord-board")
+            ok("inversions: the mode starts at the basics", "Przewroty" in board and "Wspinaczka" in board, board.replace("\n", " | "))
+            for k in range(2):
+                pg.get_by_role("button", name="Posłuchaj", exact=True).click()
+                pg.wait_for_timeout(3300)
+            board = pg.inner_text(".chord-board")
+            ok("inversions: 'Na dole' and the inversion said", "Na dole:" in board and "przewrót" in board, board.replace("\n", " | "))
+            pg.screenshot(path=str(shots / "d05b-przewroty.png"))
+            pg.locator(".drill-opts select").first.select_option("real")
             user.set("off")
 
             # --- Nuty docelowe: chord tones on the keys -------------------------------------------------------

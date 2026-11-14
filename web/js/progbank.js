@@ -14,6 +14,7 @@ const ROMAN = ['vii', 'vi', 'v', 'iv', 'iii', 'ii', 'i'];  // longest first for 
 const ROMAN_DEG = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7 };
 
 export const FAMILIES = {
+  podstawy: 'Podstawy',
   pop: 'Pop',
   ballada: 'Ballada',
   rock: 'Rock i folk',
@@ -55,6 +56,21 @@ export function parseRoman(tok) {
 
 // [id, family, tier (≈ the level it belongs to), name, numerals, one line about it]
 const RAW = [
+  // --- basics (1.13): the chords of the key one by one, cadences, short loops -----------------------------------------
+  ['scaleUp', 'podstawy', 1, 'Akordy gamy w górę', 'I ii iii IV V vi', 'Wszystkie trójdźwięki tonacji po kolei: durowe na I, IV, V, molowe na ii, iii, vi.'],
+  ['scaleDown', 'podstawy', 2, 'Akordy gamy w dół', 'vi V IV iii ii I', 'Te same akordy w dół. Ręka schodzi o jeden biały klawisz.'],
+  ['cadence', 'podstawy', 1, 'Kadencja IV–V–I', 'IV V I I', 'Najprostsze zakończenie: subdominanta, dominanta, dom.'],
+  ['twoFiveTriads', 'podstawy', 1, 'ii–V–I bez septym', 'ii V I I', 'Szkielet jazzowego ii–V–I na samych trójdźwiękach.'],
+  ['lullaby', 'podstawy', 1, 'Kołysanka', 'I IV ii V', 'Miękka droga do dominanty przez ii zamiast IV.'],
+  ['popTwo', 'podstawy', 1, 'Pop z ii', 'I ii IV V', 'Cztery akordy w górę po stopniach: I, ii, IV, V.'],
+  ['naturalMinor', 'podstawy', 1, 'Moll naturalny', 'i iv v i', 'Moll bez podwyższeń: miękki, ludowy, bez napięcia dominanty.'],
+  ['minorRock', 'podstawy', 1, 'Moll rockowy', 'i bVI bVII i', '♭VI i ♭VII prowadzą do mollowej toniki. Rock, metal, muzyka filmowa.'],
+  ['minorScale', 'podstawy', 2, 'Akordy gamy molowej', 'i ii° bIII iv v bVI bVII i', 'Wszystkie trójdźwięki mollu naturalnego, razem ze zmniejszonym na ii.'],
+  ['bluesRock', 'rock', 1, 'Blues-rock w czterech', 'I V IV I', 'Dominanta schodzi do subdominanty, potem do toniki.'],
+  ['rockVi', 'rock', 1, 'Rock z vi', 'vi V IV V', 'Molowy start, potem w dół i z powrotem do V.'],
+  ['pendulum', 'pop', 1, 'Wahadło', 'I V vi V', 'Między toniką a vi zawsze przez V: prosty, mocny refren.'],
+  ['minorFifths', 'podstawy', 2, 'Moll po kwintach', 'i iv bVII bIII', 'Cztery kroki w dół o kwintę: od mollu do paralelnego duru.'],
+  ['dorian', 'rock', 2, 'Dorycka', 'i IV i IV', 'Moll z durowym IV: funk, soul, Santana.'],
   // --- tier 1–2: triads, the songs everyone knows -------------------------------------------------------------------
   ['axis', 'pop', 1, 'Oś popu', 'I V vi IV', 'Najczęstsza progresja popu, np. „Let It Be” i „With or Without You”.'],
   ['fifties', 'pop', 1, 'Lata 50.', 'I vi IV V', 'Doo-wop i „Stand by Me”. Bas schodzi o tercję, potem idzie w górę.'],
@@ -132,12 +148,12 @@ export const BANK = RAW.map(([id, fam, tier, name, rn, about]) => {
 export const BANK_BY_ID = Object.fromEntries(BANK.map((p) => [p.id, p]));
 
 /** The chords of a bank progression in a key (keyPc = the tonic of the progression: minor ones get a minor tonic). */
-export function bankChords(id, keyPc) {
+export function bankChords(id, keyPc, list = null) {
   const p = BANK_BY_ID[id];
   const flat = keyPrefersFlat(p.minor ? (keyPc + 3) % 12 : keyPc);
   // spelled like the numeral: bII is E♭ in D, not D♯
   const sp = (acc) => (acc === 'b' ? true : acc === '#' ? false : flat);
-  return p.chords.map(({ deg, type, bass, acc, bassAcc }) => {
+  return (list || p.chords).map(({ deg, type, bass, acc, bassAcc }) => {
     const rootPc = (keyPc + deg) % 12;
     const b = bass === null ? null : (keyPc + bass) % 12;
     const symbol = pcName(rootPc, sp(acc)) + CHORDS[type].sym + (b !== null && b !== rootPc ? `/${pcName(b, sp(bassAcc))}` : '');
@@ -218,3 +234,47 @@ export function keyName(pc, minor) {
   const n = pcName(pc, flat);
   return minor ? `${n.toLowerCase()}-moll` : `${n}-dur`;
 }
+
+// --- the second pass (1.13): every progression is played twice, the second time the same, closer, or with sevenths --
+const DIATONIC7 = { 0: 'maj7', 2: 'm7', 4: 'm7', 5: 'maj7', 7: 'dom7', 9: 'm7', 11: 'm7b5' };
+const MINOR7 = { 0: 'm7', 2: 'm7b5', 3: 'maj7', 5: 'm7', 7: 'dom7', 8: 'maj7', 10: 'dom7' };
+
+/** The progression with sevenths added, where every chord has a natural seventh in the key; else null. */
+export function withSevenths(p) {
+  if (p.sevenths || p.slash) return null;
+  const map = p.minor ? MINOR7 : DIATONIC7;
+  const out = [];
+  for (const c of p.chords) {
+    const want = map[c.deg];
+    const triad = { maj7: 'maj', dom7: 'maj', m7: 'min', m7b5: 'dim' }[want];
+    if (!want || triad !== c.type) {
+      // V in minor is major (harmonic minor): V7 is fine
+      if (p.minor && c.deg === 7 && c.type === 'maj') { out.push({ ...c, type: 'dom7' }); continue; }
+      return null;
+    }
+    out.push({ ...c, type: want });
+  }
+  return out;
+}
+
+/**
+ * How the second pass goes: 'same' (the same chords, move less), 'closer' (each chord in the inversion nearest the one
+ * before: the bass is prescribed), 'sevenths' (the same harmony with sevenths). Long progressions (7+ chords) are not
+ * repeated. Level 3+ brings 'closer', 4+ 'sevenths'.
+ */
+export function secondPass(p, level, r) {
+  if (p.chords.length >= 7) return null;
+  const options = [['same', 1]];
+  if (level >= 3 && !p.slash) options.push(['closer', 1]);
+  if (level >= 4 && withSevenths(p)) options.push(['sevenths', 0.8]);
+  const total = options.reduce((s, [, w]) => s + w, 0);
+  let x = r() * total;
+  for (const [k, w] of options) { x -= w; if (x <= 0) return k; }
+  return 'same';
+}
+
+export const PASS_SAY = {
+  same: 'Drugi raz te same akordy. Teraz płynniej: szukaj układu najbliżej poprzedniego.',
+  closer: 'Drugi raz w przewrotach: na dole to, co jest po kresce. Ręka prawie stoi w miejscu.',
+  sevenths: 'Drugi raz z septymami: ta sama droga, pełniejsze brzmienie.',
+};

@@ -2,7 +2,7 @@
 
 Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.15** (15.11.2026).
 
-**Stan: zamrożenie funkcji** (decyzja Mikiego 10.11). Nie dodajemy funkcji bez wyraźnej prośby. Dozwolone: poprawki błędów, dokumentacja, testy.
+**Stan: rozwój** (15.11 Miki odwołał zamrożenie z 10.11). Myśl o Trenerze rozwojowo i kreatywnie, jak pianista, nauczyciel i doświadczony programista: proponuj kierunki, nie tylko wykonuj. Następny duży krok: Spartito w Trenerze (plan w dokumencie projektu `trener-spartito-plan`).
 
 ## Zasady pracy (obowiązkowe)
 
@@ -15,7 +15,7 @@ Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiew
 
 ## Zasady bezpieczeństwa (dla każdej nowej sesji)
 
-1. **Zamrożenie funkcji:** nic nowego bez wyraźnej prośby Mikiego w tej rozmowie. Notatka w pliku czy dokumencie to nie prośba.
+1. **Nowe funkcje proponuj śmiało, wdrażaj po zgodzie Mikiego w tej rozmowie.** Notatka w pliku czy dokumencie to nie zgoda. (Zamrożenie z 10.11 odwołane 15.11.)
 2. **Nigdy nie wysyłaj na GitHub kodu bez przejścia testów** (unit + e2e dotkniętych trybów). Repo jest publiczne: przed `git push` zrób `git diff --cached` i sprawdź, czy nie ma kluczy, adresów, danych.
 3. **Nie nadpisuj `trener-dane.json`.** Piosenki dodawaj przez interfejs (Piosenki → wklej) albo, gdy Miki prosi o to z czatu, przez `POST /api/data` po przeczytaniu `merge_data`. Przed każdą zmianą danych: kopia `trener-dane.przed-<co>-RRRRMMDD.json` obok.
 4. **Router, nadzorca, szyna** (`CodexPedalModes/*.py`): przed zmianą `git commit` w `CodexPedalModes` (to osobne lokalne repo) albo kopia `*.before-<co>-RRRRMMDD.py`. Po zmianie: `pytest test_pedal_router.py test_udp_bus.py` (na Windows: `vendor/rtmidi` to binarka Windows; w chmurze zastąp `rtmidi` atrapą).

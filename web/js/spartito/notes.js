@@ -18,8 +18,17 @@ export function fifthsOf(wheelIndex) {
  * notes: [{ p, t, d, v?, st?, sel? }] (beats; st: 0 treble, 1 bass, -1 split at middle C)
  * Returns the layout L (systems, sysOps, topOps, hits, height).
  */
-export function layout(E, notes, { key = 0, staves = 'piano', num = 4, den = 4, len = 0, width = 600, sp = SP, title = '', selc = RED, finalBar = true, marginL = null } = {}) {
+export function layout(E, notes, opts = {}) {
+  const { width = 600, sp = SP, title = '', selc = RED, finalBar = true, marginL = null, marginR = null, top = null, bottom = null } = opts;
+  const { S } = engrave(E, notes, opts);
+  return E.ly_layout(S, { width, sp, marginL: marginL === null ? 3.4 * sp : marginL, marginR: marginR === null ? 1.6 * sp : marginR,
+    top: top === null ? 0.4 * sp : top, bottom: bottom === null ? 4 * sp : bottom, title, ink: E.gl_INK, selc, finalBar, barOffset: 0 });
+}
+
+/** The Spartito model and its engraving (for the exports: MIDI from M, MusicXML from S). quant: 12 = 1/16, 24 = 1/8. */
+export function engrave(E, notes, { key = 0, staves = 'piano', num = 4, den = 4, len = 0, quant = 12, name = '' } = {}) {
   const M = E.md_new();
+  M.name = name;
   M.num = num; M.den = den;
   let end = 0;
   for (const n of notes) {
@@ -30,9 +39,7 @@ export function layout(E, notes, { key = 0, staves = 'piano', num = 4, den = 4, 
   }
   const bar = (num * 4) / den;
   M.lenBeats = Math.max(len, Math.ceil(end / bar - 1e-9) * bar, bar);
-  const S = E.nt_engrave(M, { ...ENGRAVE, key, staves });
-  return E.ly_layout(S, { width, sp, marginL: marginL === null ? 3.4 * sp : marginL, marginR: 1.6 * sp, top: 0.4 * sp, bottom: 4 * sp,
-    title, ink: E.gl_INK, selc, finalBar, barOffset: 0 });
+  return { M, S: E.nt_engrave(M, { ...ENGRAVE, key, staves, quant }) };
 }
 
 /** A chord (or one note) as whole notes in one bar. `wrong`: pitches drawn in red next to it. */
@@ -220,4 +227,100 @@ export function nextReadLevel(level, results, goalMs) {
 export function median(list) {
   const s = [...list].sort((a, b) => a - b);
   return s.length ? s[Math.floor(s.length / 2)] : 0;
+}
+
+// --- Zeszyt: a phrase from the router's log as notes ----------------------------------------------------------
+/** Beats per minute from the onsets of free playing: the typical gap is taken as an eighth, a quarter or a half. */
+export function estimateTempo(notes) {
+  const on = [...new Set(notes.map((n) => Math.round(n[1] * 20) / 20))].sort((a, b) => a - b);   // onsets within 50 ms are one
+  const gaps = [];
+  for (let i = 1; i < on.length; i++) { const g = on[i] - on[i - 1]; if (g >= 0.12 && g <= 2.5) gaps.push(g); }
+  if (gaps.length < 3) return 80;
+  let beat = median(gaps);
+  while (beat < 0.4) beat *= 2;
+  while (beat > 1.1) beat /= 2;
+  return Math.max(40, Math.min(180, Math.round(60 / beat)));
+}
+
+/** The signature (in fifths, -6..6) that leaves the fewest sounding notes outside the major scale. */
+export function guessFifths(notes) {
+  let best = 0, bestCost = Infinity;
+  for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6]) {
+    const sc = scaleOf(k);
+    const cost = notes.reduce((a, n) => a + (sc.has(((n[0] % 12) + 12) % 12) ? 0 : Math.min(2, n[2] || 0.3)), 0);
+    if (cost < bestCost - 1e-9) { best = k; bestCost = cost; }
+  }
+  return best;
+}
+
+/** A phrase ([[pitch, t s, d s, vel]]) as notes in beats at `bpm`: the first note on beat 1 of bar 1. */
+export function phraseNotes(phrase, bpm) {
+  const k = bpm / 60;
+  const t0 = phrase.length ? Math.min(...phrase.map((n) => n[1])) : 0;
+  return phrase.map((n) => ({ p: n[0], t: (n[1] - t0) * k, d: Math.max(0.12, n[2] * k), v: n[3] || 80 }));
+}
+
+// --- Śpiewnik: melody, chord symbols and words ------------------------------------------------------------------
+/** The melody of a take: the top note of each onset, from `fromNote` up, in beats after `t0` (s). events: {note, on, t, vel}. */
+export function melodyFrom(events, t0, bpm, { fromNote = 55, endBeat = Infinity } = {}) {
+  const k = bpm / 60;
+  const open = new Map(), all = [];
+  for (const e of events) {
+    if (e.on) { const n = { p: e.note, t: (e.t - t0) * k, d: 0.25, v: e.vel || 80 }; open.set(e.note, n); all.push(n); }
+    else if (open.has(e.note)) { const n = open.get(e.note); n.d = Math.max(0.12, (e.t - t0) * k - n.t); open.delete(e.note); }
+  }
+  const tops = new Map();
+  for (const n of all) {
+    if (n.p < fromNote || n.t < -0.25 || n.t >= endBeat) continue;
+    const slot = Math.round(n.t * 8);                          // onsets within a 32nd are one
+    if (!tops.has(slot) || tops.get(slot).p < n.p) tops.set(slot, n);
+  }
+  return [...tops.values()].map((n) => ({ ...n, t: Math.max(0, n.t), d: Math.min(n.d, endBeat - Math.max(0, n.t)) })).sort((a, b) => a.t - b.t);
+}
+
+/** Words to sing, in order, from the lyric lines of song sections (parseChart). */
+export function lyricWords(sections) {
+  return sections.flatMap((s) => s.lines || []).map((l) => l.lyric || '').join(' ').split(/\s+/).filter((w) => w && !/^[|%]+$/.test(w));
+}
+
+/**
+ * Room above each system for chord symbols and below it for words: every system moves down, so the layout
+ * stays one picture. Mutates L (ops, systems, hits, height).
+ */
+export function spaceSystems(L, above, below) {
+  const shift = (d, dy) => { for (let i = 0; i < d.length;) { const c = d[i]; if (c === 'M' || c === 'L') { d[i + 2] += dy; i += 3; } else if (c === 'C') { d[i + 2] += dy; d[i + 4] += dy; d[i + 6] += dy; i += 7; } else i += 1; } };
+  L.systems.forEach((sy, i) => {
+    const dy = above + i * (above + below);
+    for (const op of L.sysOps[i]) { if (op.d) shift(op.d, dy); if (op.k === 'T') op.y += dy; }
+    sy.y0 += dy; sy.y1 += dy; sy.tops = sy.tops.map((t) => t + dy);
+  });
+  for (const h of L.hits) { const dy = above + (L.measures[h.m] ? L.measures[h.m].sys : 0) * (above + below); h.y0 += dy; h.y1 += dy; }
+  L.height += L.systems.length * (above + below);
+  return L;
+}
+
+/**
+ * Chord symbols over the beats where they start and words under the notes, as Spartito text ops, so the
+ * screen (SVG) and print draw them like the rest. chords: [{beat, name}]; notes: the laid-out notes (id = index + 1).
+ */
+export function sheetMarks(E, L, { chords = [], words = [], notes = [] } = {}) {
+  const sp = L.sp, ink = E.gl_INK;
+  const text = (sys, x, y, s, size, bold, italic) => L.sysOps[sys].push({ k: 'T', x, y, s, size, font: 'serif', bold: bold ? 1 : 0, italic: italic ? 1 : 0, align: 'left', c: ink });
+  for (const c of chords) {
+    const at = E.ly_xAtTick(L, Math.round(c.beat * E.TPQ));
+    if (!at || !c.name) continue;
+    text(at.sys, at.x - 0.4 * sp, L.systems[at.sys].tops[0] - 2.4 * sp, c.name, 1.7 * sp, true, false);
+  }
+  const heads = L.hits.filter((h) => h.k === 'n').map((h) => ({ h, n: notes[h.id - 1] })).filter((x) => x.n)
+    .sort((a, b) => a.n.t - b.n.t);
+  let w = 0, lastT = -1;
+  for (const { h, n } of heads) {
+    if (w >= words.length) break;
+    if (Math.abs(n.t - lastT) < 1e-6) continue;
+    lastT = n.t;
+    const sys = L.measures[h.m] ? L.measures[h.m].sys : 0;
+    const bottom = L.systems[sys].tops[L.systems[sys].tops.length - 1] + 4 * sp;
+    L.sysOps[sys].push({ k: 'T', x: (h.x0 + h.x1) / 2, y: bottom + 3.4 * sp, s: words[w++], size: 1.45 * sp, font: 'serif', bold: 0, italic: 0, align: 'center', c: ink });
+  }
+  return { placed: w };
 }

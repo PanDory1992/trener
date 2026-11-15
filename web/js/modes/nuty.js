@@ -1,6 +1,8 @@
 // Nuty: Spartito in Trener. A world of its own: the rest of Trener stays without notation.
 //   Na żywo   what you hold, written in the key; your last notes as a row of notes (pitch, no rhythm)
 //   Czytanie  a note or chord on the staff: play it. Ten steps from five notes of one hand to chords.
+//   Zeszyt    everything played today (the router's note log) in phrases, as notes; save, export, listen
+//   Śpiewnik  a song from Piosenki: the band plays, you play the melody, out comes a lead sheet (chords, words)
 // The engine (Miki's Spartito, web/js/spartito/engine.js) is kept off git; without it this mode says so.
 import * as store from '../store.js';
 import { el, fill, add, status } from '../ui.js';
@@ -8,15 +10,21 @@ import { getKey, setKey, onKeyChange } from '../key.js';
 import { keyName, stepKey, wheelIndex, spellName } from '../theory.js';
 import { identify } from '../chords.js';
 import { plural } from '../music.js';
+import * as bus from '../bus.js';
+import { parseChart, guessKeys, degreeIn, STARTERS } from '../songs.js';
+import { GROOVES } from '../grooves.js';
+import { songBand, chunkEvents } from '../bandplay.js';
 import { layoutSvg, label } from '../spartito/svg.js';
 import {
   SP, RED, layout, chordNotes, sequenceNotes, stavesFor, groupOnsets, isMeter, fifthsOf, placeWords,
   READ_LEVELS, levelItems, pickItem, checkCard, cardScore, noteCard, nextReadLevel, median,
+  engrave, estimateTempo, guessFifths, phraseNotes, melodyFrom, lyricWords, spaceSystems, sheetMarks,
 } from '../spartito/notes.js';
 
 export const id = 'nuty';
 const SERIES = 20;
-const TABS = [['zywo', 'Na żywo'], ['czytanie', 'Czytanie']];
+const TABS = [['zywo', 'Na żywo'], ['czytanie', 'Czytanie'], ['zeszyt', 'Zeszyt'], ['spiewnik', 'Śpiewnik']];
+const TAB_FN = () => ({ zywo: liveTab, czytanie: readTab, zeszyt: bookTab, spiewnik: sheetTab });
 
 export function mount(stage, ctx) {
   const rec = store.mode('nuty');
@@ -45,7 +53,7 @@ export function mount(stage, ctx) {
     tab = null;
     ctx.keyboard.mark([]);
     if (!E) return;
-    tab = rec.tab === 'czytanie' ? readTab(body, E, rec, ctx) : liveTab(body, E, rec, ctx);
+    tab = (TAB_FN()[rec.tab] || liveTab)(body, E, rec, ctx);
   }
 
   renderTabs();
@@ -296,4 +304,245 @@ function readTab(body, E, rec, ctx) {
   };
 }
 
-void plural; void add; void RED;
+
+// --- exports, shared by Zeszyt and Śpiewnik ----------------------------------------------------------------
+function download(name, data, mime) {
+  const bytes = typeof data === 'string' ? Uint8Array.from(data, (c) => c.charCodeAt(0) & 255) : Uint8Array.from(data);
+  const a = el('a', { href: URL.createObjectURL(new Blob([bytes], { type: mime })), download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const fileName = (title) => (String(title || 'Nuty').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'Nuty');
+
+/** MIDI, MusicXML, PDF (the engine's own exports) and print (the page with chords and words). */
+function exportRow(E, get) {
+  const go = (fmt) => {
+    const x = get();
+    const name = fileName(x.title);
+    if (fmt === 'midi') return download(`${name}.mid`, E.ex_midiBytes(engrave(E, x.notes, x.opts).M, x.bpm, x.opts.key || 0, x.title), 'audio/midi');
+    if (fmt === 'xml') return download(`${name}.musicxml`, E.ex_musicxml(engrave(E, x.notes, x.opts).S, x.title), 'application/vnd.recordare.musicxml+xml');
+    if (fmt === 'pdf') return download(`${name}.pdf`, E.ex_pdf(layout(E, x.notes, { ...x.opts, title: x.title, width: E.ex_PW, sp: 5, marginL: 60, marginR: 42, top: 0, bottom: 0, finalBar: true })), 'application/pdf');
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>${name}</title><style>body{margin:0}svg{width:100%;height:auto}@page{margin:12mm}</style>${x.print()}`);
+    w.document.close();
+    setTimeout(() => w.print(), 300);
+  };
+  return el('div', { class: 'actions nuty-export' }, el('span', { class: 'muted' }, 'Eksport:'),
+    el('button', { class: 'btn small', onclick: () => go('print'), title: 'Druk albo PDF z przeglądarki (z akordami i tekstem)' }, 'Drukuj'),
+    el('button', { class: 'btn small', onclick: () => go('pdf') }, 'PDF'),
+    el('button', { class: 'btn small', onclick: () => go('xml'), title: 'Do MuseScore' }, 'MusicXML'),
+    el('button', { class: 'btn small', onclick: () => go('midi'), title: 'Przeciągnij na ścieżkę w Studio One' }, 'MIDI'));
+}
+
+// --- Zeszyt ---------------------------------------------------------------------------------------------------
+function bookTab(body, E, rec, ctx) {
+  rec.saved = rec.saved || [];
+  let day = new Date().toLocaleDateString('sv');          // YYYY-MM-DD in local time
+  let list = [], pick = null, view = { bpm: 80, quant: 24, key: 0 };
+  let alive = true;
+  const listBox = el('div', { class: 'nuty-phrases' });
+  const scoreWrap = el('div', { class: 'nuty-phrase' });
+  const dayInput = el('input', { type: 'date', value: day, onchange: (e) => { day = e.target.value || day; load(); } });
+  fill(body,
+    el('p', { class: 'muted' }, 'Wszystko, co dziś zagrałeś, zapisuje router. Tu jest to podzielone na frazy (po 3 s ciszy) i zapisane nutami. Nic nie trzeba nagrywać.'),
+    el('div', { class: 'nuty-bar' }, el('label', {}, 'Dzień ', dayInput),
+      el('button', { class: 'btn small', onclick: () => load() }, 'Odśwież')),
+    el('div', { class: 'nuty-book' }, listBox, scoreWrap));
+  load();
+
+  async function load() {
+    fill(listBox, el('p', { class: 'muted' }, 'Czytam…'));
+    let r;
+    try { r = await bus.getJSON(`/api/phrases?day=${encodeURIComponent(day)}`); } catch { r = { phrases: [] }; }
+    if (!alive) return;
+    list = (r.phrases || []).slice().reverse();
+    renderList();
+    if (!pick && list.length) open(list[0]);
+    if (!list.length) fill(scoreWrap, el('p', { class: 'muted' }, 'Tego dnia nic nie zagrałeś (albo router nie zapisał).'));
+  }
+
+  const hhmm = (t) => new Date(t * 1000).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  const savedOf = (ph) => rec.saved.find((x) => x.day === day && Math.abs(x.start - ph.start) < 0.01);
+
+  function renderList() {
+    fill(listBox, list.length ? list.map((ph) => {
+      const sv = savedOf(ph);
+      return el('button', { class: `nuty-ph ${pick === ph ? 'on' : ''}`, onclick: () => open(ph) },
+        el('b', {}, sv ? sv.name : hhmm(ph.start)), el('span', {}, `${Math.round(ph.dur)} s · ${ph.n} ${plural(ph.n, 'nuta', 'nuty', 'nut')}`));
+    }) : null);
+  }
+
+  function open(ph) {
+    pick = ph;
+    const sv = savedOf(ph);
+    view = sv ? { bpm: sv.bpm, quant: sv.quant, key: sv.key } : { bpm: estimateTempo(ph.notes), quant: 24, key: guessFifths(ph.notes) };
+    renderList();
+    draw();
+  }
+
+  function current() {
+    const sv = savedOf(pick);
+    const title = sv ? sv.name : `Fraza ${day} ${hhmm(pick.start)}`;
+    const notes = phraseNotes(pick.notes, view.bpm);
+    const opts = { key: view.key, quant: view.quant, staves: stavesFor(notes.map((n) => n.p)) };
+    return { title, notes, opts, bpm: view.bpm, print: () => layoutSvg(layout(E, notes, { ...opts, title, width: 900, sp: 8 })) };
+  }
+
+  function draw() {
+    if (!pick) return;
+    const x = current();
+    const L = layout(E, x.notes, { ...x.opts, title: x.title, width: 1000, sp: SP });
+    const sv = savedOf(pick);
+    const nameIn = el('input', { type: 'text', placeholder: 'Nazwa, np. „Ballada, pomysł”', value: sv ? sv.name : '' });
+    const set = (k, v) => { view[k] = v; if (sv) Object.assign(sv, { [k]: v }); store.save(); draw(); };
+    fill(scoreWrap,
+      el('div', { class: 'nuty-bar' },
+        el('span', {}, 'Tempo ', el('button', { class: 'btn tiny', onclick: () => set('bpm', Math.max(30, view.bpm - 5)) }, '−'), ` ${view.bpm} `,
+          el('button', { class: 'btn tiny', onclick: () => set('bpm', Math.min(220, view.bpm + 5)) }, '+')),
+        el('span', { class: 'seg-ctl tiny' }, [[24, 'ósemki'], [12, 'szesnastki']].map(([q, t]) => el('button', { class: view.quant === q ? 'on' : '', onclick: () => set('quant', q) }, t))),
+        el('span', {}, 'Znaki ', el('button', { class: 'btn tiny', onclick: () => set('key', Math.max(-6, view.key - 1)) }, '♭'),
+          el('button', { class: 'btn tiny', onclick: () => set('key', Math.min(6, view.key + 1)) }, '♯')),
+        el('button', { class: 'btn small', onclick: () => listen() }, 'Posłuchaj')),
+      el('p', { class: 'muted small' }, 'Tempo i znaki zgaduję z twojego grania. Bez metronomu rytm jest przybliżony: popraw tempo, aż nuty będą proste.'),
+      scoreBox(L, { cls: 'phrase', label: x.title }),
+      el('div', { class: 'nuty-bar' }, nameIn, el('button', { class: 'btn small', onclick: () => {
+        const name = nameIn.value.trim() || `Fraza ${hhmm(pick.start)}`;
+        if (sv) sv.name = name; else rec.saved.push({ id: store.newId(), day, start: pick.start, name, ...view });
+        store.save(); renderList(); draw();
+      } }, sv ? 'Zmień nazwę' : 'Zapisz w zeszycie')),
+      exportRow(E, current),
+      rec.saved.length ? el('details', { class: 'nuty-saved' }, el('summary', {}, `Zapisane (${rec.saved.length})`),
+        el('ul', {}, rec.saved.slice().reverse().map((x) => el('li', {}, el('button', { class: 'link', onclick: () => { day = x.day; dayInput.value = day; pick = null; load().then(() => { const ph = list.find((p) => Math.abs(p.start - x.start) < 0.01); if (ph) open(ph); }); } }, `${x.name} (${x.day})`))))) : null);
+  }
+
+  function listen() {
+    if (!pick) return;
+    const ev = [];
+    const t0 = Math.min(...pick.notes.map((n) => n[1]));
+    for (const [p, t, d, v] of pick.notes) { ev.push({ t: t - t0, m: [0x90, p, v || 80] }, { t: t - t0 + d, m: [0x80, p, 0] }); }
+    bus.play(ev.sort((a, b) => a.t - b.t).slice(0, 3800)).catch(() => {});
+  }
+
+  return { destroy() { alive = false; } };
+}
+
+// --- Śpiewnik -------------------------------------------------------------------------------------------------
+function sheetTab(body, E, rec, ctx) {
+  rec.sheets = rec.sheets || {};
+  rec.sing = rec.sing || { song: null, sec: 0, tempo: 80, groove: 'pop' };
+  const S = rec.sing;
+  let take = null, alive = true;
+  const songs = () => [...store.data.songs, ...STARTERS];
+  const box = el('div', { class: 'nuty-sheet' });
+  fill(body, el('p', { class: 'muted' }, 'Piosenka z Piosenek. Zespół gra akordy, ty grasz melodię prawą ręką (to, co śpiewasz). Wychodzi kartka do śpiewania: melodia, akordy nad nią, tekst pod nią.'), box);
+  render();
+
+  function song() { return songs().find((x) => x.id === S.song) || songs()[0]; }
+  function analyse() {
+    const sg = song();
+    const chart = parseChart(sg.text);
+    const g = guessKeys(chart.chords)[0];
+    const key = g ? g.key : getKey();
+    const secs = S.sec < 0 ? chart.sections : [chart.sections[Math.min(S.sec, chart.sections.length - 1)]].filter(Boolean);
+    return { sg, chart, key, secs, id: `${sg.id}|${S.sec}` };
+  }
+  function steps(a) {
+    const out = [];
+    for (const s of a.secs) {
+      if (a.secs.length > 1) out.push({ k: 'sec', label: s.name });
+      s.chords.forEach((c, i) => {
+        const d = degreeIn(a.key, c);
+        const st = { k: 'chord', d: d.deg, a: d.alt, q: c.quality, bars: (s.beats[i] || 4) / 4, lock: 1 };
+        if (c.bass && c.bass.pc !== c.pc) st.bass = (((c.bass.pc - c.pc) % 12) + 12) % 12;
+        out.push(st);
+      });
+    }
+    return out;
+  }
+
+  function render() {
+    const a = analyse();
+    S.song = a.sg.id;
+    const sheet = rec.sheets[a.id];
+    const sel = (label, value, items, on) => el('label', {}, `${label} `, el('select', { onchange: (e) => on(e.target.value) }, items.map(([v, t]) => el('option', { value: v, selected: String(v) === String(value) }, t))));
+    fill(box,
+      el('div', { class: 'nuty-bar' },
+        sel('Piosenka', S.song, songs().map((x) => [x.id, x.title]), (v) => { S.song = v; S.sec = 0; store.save(); render(); }),
+        sel('Część', S.sec, [...a.chart.sections.map((x, i) => [i, x.name || `część ${i + 1}`]), [-1, 'Cała piosenka']], (v) => { S.sec = Number(v); store.save(); render(); }),
+        sel('Styl', S.groove, GROOVES.map((g) => [g.id, g.name]), (v) => { S.groove = v; store.save(); }),
+        el('label', {}, 'Tempo ', el('input', { type: 'number', min: 40, max: 200, value: S.tempo, class: 'nuty-tempo', onchange: (e) => { S.tempo = Math.max(40, Math.min(200, Number(e.target.value) || 80)); store.save(); } }))),
+      el('div', { class: 'actions' },
+        take ? el('button', { class: 'btn', onclick: () => stop() }, 'Stop') : el('button', { class: 'btn primary', onclick: () => record() }, sheet ? 'Nagraj melodię jeszcze raz' : 'Nagraj melodię'),
+        el('span', { class: 'muted', id: 'sheet-status' }, take ? 'Odliczam takt, potem graj melodię…' : '')),
+      sheet ? drawSheet(a, sheet) : el('p', { class: 'muted' }, 'Jeszcze bez kartki. Nagraj melodię: jedno przejście z zespołem.'));
+  }
+
+  function sheetNotes(sheet) { return sheet.notes.map(([p, t, d]) => ({ p, t, d, st: 0 })); }
+
+  function build(a, sheet, { width = 1000, sp = SP } = {}) {
+    const notes = sheetNotes(sheet);
+    const title = `${a.sg.title}${a.secs.length === 1 && a.chart.sections.length > 1 ? ` – ${a.secs[0].name}` : ''}`;
+    const L = layout(E, notes, { key: sheet.key, staves: 'treble', len: sheet.beats, quant: 24, title, width, sp });   // eighths: a sheet to sing from
+    spaceSystems(L, 3 * sp, a.words.length ? 4.6 * sp : 0.5 * sp);
+    sheetMarks(E, L, { chords: sheet.chords, words: a.words, notes });
+    return { L, notes, title };
+  }
+
+  function drawSheet(a, sheet) {
+    a.words = lyricWords(a.secs);
+    const { L, notes, title } = build(a, sheet);
+    return el('div', {},
+      scoreBox(L, { cls: 'sheet', label: `Śpiewnik: ${title}` }),
+      a.words.length ? null : el('p', { class: 'muted small' }, 'Ta piosenka nie ma tekstu w Piosenkach: wklej go pod akordami, a pojawi się pod nutami.'),
+      exportRow(E, () => ({ title, notes, bpm: sheet.tempo, opts: { key: sheet.key, staves: 'treble', len: sheet.beats, quant: 24 },
+        print: () => layoutSvg(build(a, sheet, { width: 800, sp: 8 }).L) })));
+  }
+
+  async function record() {
+    const a = analyse();
+    const st = steps(a);
+    if (!st.some((x) => x.k === 'chord')) return;
+    const pass = songBand({ key: a.key, steps: st, groove: S.groove, tempo: S.tempo, mode: 'calosc', drummer: 3, lead: true });
+    const parts = chunkEvents(pass.events);
+    take = { events: [], timers: [] };
+    render();
+    let t0;
+    try { t0 = await bus.play(parts[0].events, { lead: 0.3 }); } catch { take = null; render(); return; }
+    if (!take) return;
+    for (const p of parts.slice(1)) bus.play(p.events, { at: t0 + p.offset }).catch(() => {});
+    take.t0 = t0;
+    const end = t0 + pass.seconds;
+    take.timers.push(bus.at(end + 0.4, () => finish(a, pass)));
+  }
+
+  function finish(a, pass) {
+    if (!take || !alive) return;
+    const k = S.tempo / 60;
+    const start = take.t0 + pass.leadIn + (store.data.settings.latencyMs || 0) / 1000;   // the measured delay of what you hear
+    const beats = (pass.seconds - pass.leadIn) * k;
+    const notes = melodyFrom(take.events, start, S.tempo, { endBeat: beats });
+    const fifths = fifthsOf(wheelIndex(a.key));            // a minor key sits on the wheel with its relative major's signature
+    rec.sheets[a.id] = {
+      notes: notes.map((n) => [n.p, Math.round(n.t * 1000) / 1000, Math.round(n.d * 1000) / 1000]),
+      chords: pass.chords.map((c) => ({ beat: Math.round((c.start - pass.leadIn) * k * 1000) / 1000, name: c.name })),
+      key: fifths, tempo: S.tempo, beats: Math.round(beats), at: Date.now(),
+    };
+    store.save();
+    take = null;
+    render();
+  }
+
+  function stop() {
+    if (take) for (const c of take.timers) c();
+    take = null;
+    bus.stop();
+    render();
+  }
+
+  return {
+    onNote(e) { if (take && take.t0) take.events.push({ note: e.note, on: e.on, t: typeof e.ts === 'number' ? e.ts : bus.now(), vel: e.vel }); },
+    destroy() { alive = false; if (take) stop(); },
+  };
+}
+

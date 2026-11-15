@@ -183,3 +183,61 @@ def recent_rows(folder: Path, days: int = 3, today: datetime.date | None = None)
     for f in sorted(files):
         rows += read_rows(f, since)
     return sorted(rows)
+
+
+# --- 1.17: Zeszyt (Nuty) - the day's playing split into phrases -----------------------------------------------
+PHRASE_PAUSE = 3.0       # silence (no key down) longer than this ends a phrase
+PHRASE_MIN = 6           # shorter phrases (a key tried, a chord checked) are left out
+
+
+def day_phrases(folder: Path, day: datetime.date, pause: float = PHRASE_PAUSE, max_bytes: int = 60_000_000) -> list[dict]:
+    """Phrases played on `day` (local time): [{start, dur, n, notes: [[pitch, t, d, vel], ...]}], t and d in
+    seconds from the phrase start. A phrase ends when no key has been down for `pause` seconds."""
+    path = week_file(folder, day)
+    try:
+        size = path.stat().st_size
+        with path.open("rb") as f:
+            f.seek(max(0, size - max_bytes))
+            lines = f.read().decode("ascii", errors="ignore").splitlines()
+    except OSError:
+        return []
+    lo = datetime.datetime.combine(day, datetime.time()).timestamp()
+    hi = lo + 86400
+    events = []
+    for line in lines:
+        p = line.split(",")
+        if len(p) < 4 or p[1] not in ("on", "off"):
+            continue
+        try:
+            t, note = float(p[0]), int(p[2])
+            vel = int(p[4]) if len(p) > 4 and p[4].strip() else int(p[3])
+        except ValueError:
+            continue
+        if lo <= t < hi:
+            events.append((t, p[1] == "on", note, vel))
+    events.sort()
+    out, cur, held, last_up = [], None, {}, None
+    for t, on, note, vel in events:
+        if on:
+            if cur is None or (not held and last_up is not None and t - last_up > pause):
+                if cur and len(cur["notes"]) >= PHRASE_MIN:
+                    out.append(cur)
+                cur, held = {"start": t, "notes": []}, {}
+            if note in held:                                  # pressed again without a release
+                n = held.pop(note)
+                n[2] = round(t - cur["start"] - n[1], 3)
+            n = [note, round(t - cur["start"], 3), 0.1, vel]
+            cur["notes"].append(n)
+            held[note] = n
+        elif cur is not None and note in held:
+            n = held.pop(note)
+            n[2] = max(0.03, round(t - cur["start"] - n[1], 3))
+            if not held:
+                last_up = t
+    if cur and len(cur["notes"]) >= PHRASE_MIN:
+        out.append(cur)
+    for ph in out:
+        ph["n"] = len(ph["notes"])
+        ph["dur"] = round(max(n[1] + n[2] for n in ph["notes"]), 2)
+        ph["start"] = round(ph["start"], 3)
+    return out

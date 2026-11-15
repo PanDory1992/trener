@@ -36,7 +36,20 @@ def main():
         shutil.rmtree(SCRATCH)
     app_dir = SCRATCH / "CodexPedalModes" / "trener"
     shutil.copytree(TRENER, app_dir, ignore=shutil.ignore_patterns("tests", "node_modules", "trener-dane*.json", "klucz-telefonu.txt", "trener.log", "spartito-src"))
-    (app_dir / "trener-dane.json").write_text('{"v":1,"settings":{},"modes":{},"cards":[],"days":{}}', encoding="utf-8")
+    song = {"id": "t-ala", "title": "Ala", "text": "[Zwrotka]\n| C | G |\nAla ma kota a kot ma Ale\n| F | C |\nla la la la"}
+    (app_dir / "trener-dane.json").write_text(json.dumps({"v": 1, "settings": {}, "modes": {}, "cards": [], "days": {}, "songs": [song]}), encoding="utf-8")
+    # the router's note log: today, two phrases (a C major scale up in quarters at 100, then a pause, then a chord tune)
+    import datetime
+    notes_dir = SCRATCH / "CodexPedalModes" / "notes"
+    notes_dir.mkdir(parents=True)
+    y, w, _ = datetime.date.today().isocalendar()
+    t0 = time.time() - 600
+    rows = []
+    for i, n in enumerate([60, 62, 64, 65, 67, 69, 71, 72]):
+        rows += [(t0 + i * 0.6, "on", n, 70), (t0 + i * 0.6 + 0.55, "off", n, 0)]
+    for i in range(8):
+        rows += [(t0 + 60 + i * 0.6, "on", 76 - i, 80), (t0 + 60 + i * 0.6 + 0.5, "off", 76 - i, 0)]
+    (notes_dir / f"notes-{y}-W{w:02d}.csv").write_text("".join(f"{t:.4f},{k},{n},{v},{v}\n" for t, k, n, v in sorted(rows)), encoding="ascii")
     user = FakeUser()
     bus = UdpBus(on_play=user.on_play)
     user.bus = bus
@@ -60,7 +73,7 @@ def main():
             pg.wait_for_timeout(1500)
 
             ok("nav: Nuty apart from the exercises", pg.locator(".nav-group-nuty").count() == 1 and pg.locator(".nav-item.nav-nuty").count() == 1)
-            ok("server says 1.16", json.loads(pg.evaluate("fetch('/api/now').then(r => r.text())"))["version"] == "1.16")
+            ok("server says 1.17", json.loads(pg.evaluate("fetch('/api/now').then(r => r.text())"))["version"] == "1.17")
             pg.click(".nav-item.nav-nuty")
             pg.wait_for_selector(".nuty-chord .nuty-score svg", timeout=5000)
             tabs = pg.inner_text(".nuty-tabs")
@@ -156,6 +169,58 @@ def main():
             pg.wait_for_timeout(700)
             ok("chord read: right, next card", "1 / 20" in pg.inner_text(".nuty-count") and pg.locator(".nuty-score.card.bad").count() == 0, pg.inner_text(".nuty-count"))
             pg.screenshot(path=str(shots / "05-czytanie-akord.png"))
+
+            # --- Zeszyt: today's phrases from the router's log
+            pg.click(".nuty-tabs >> text=Zeszyt")
+            pg.wait_for_selector(".nuty-ph", timeout=4000)
+            ok("zeszyt: two phrases, newest first", pg.locator(".nuty-ph").count() == 2 and "8 nut" in pg.inner_text(".nuty-ph >> nth=0"), pg.inner_text(".nuty-phrases").replace("\n", " | "))
+            pg.locator(".nuty-ph").nth(1).click()
+            pg.wait_for_timeout(300)
+            box = pg.locator(".nuty-score.phrase")
+            ok("zeszyt: the scale as eight notes at a guessed tempo of 100", box.get_attribute("data-heads") == "8" and " 100 " in pg.inner_text(".nuty-phrase .nuty-bar"), pg.inner_text(".nuty-phrase .nuty-bar").replace("\n", " "))
+            pg.fill(".nuty-phrase input[type=text]", "Gama C")
+            pg.click("text=Zapisz w zeszycie")
+            pg.wait_for_timeout(300)
+            ok("zeszyt: saved under its name", "Gama C" in pg.inner_text(".nuty-phrases"))
+            with pg.expect_download() as dl:
+                pg.click(".nuty-export >> text=MIDI")
+            ok("zeszyt: MIDI export", dl.value.suggested_filename == "Gama C.mid", dl.value.suggested_filename)
+            with pg.expect_download() as dl:
+                pg.click(".nuty-export >> text=PDF")
+            pdf = Path(dl.value.path()).read_bytes()
+            ok("zeszyt: PDF export", pdf[:5] == b"%PDF-", str(pdf[:8]))
+            pg.screenshot(path=str(shots / "06-zeszyt.png"))
+
+            # --- Śpiewnik: the band plays, the fake pianist plays a melody on the beats
+            pg.click(".nuty-tabs >> text=Śpiewnik")
+            pg.wait_for_timeout(300)
+            pg.select_option(".nuty-sheet select >> nth=0", "t-ala")
+            pg.fill(".nuty-tempo", "150")
+            pg.press(".nuty-tempo", "Tab")
+            pg.wait_for_timeout(200)
+            pg.click("text=Nagraj melodię")
+            stop_at = time.time() + 14
+            def melody():
+                time.sleep(1.92)                     # lead 0.3 s + count-in at 150: 1.6 s
+                notes = [67, 64, 65, 62, 64, 60, 62, 60, 67, 65, 64, 62, 60, 64, 62, 60]
+                i = 0
+                while time.time() < stop_at and i < 64:
+                    user.hit(notes[i % len(notes)], 80, 0.3)
+                    i += 1
+                    time.sleep(0.4)
+            th = threading.Thread(target=melody, daemon=True)
+            th.start()
+            pg.wait_for_selector(".nuty-score.sheet", timeout=20000)
+            sheet = pg.inner_html(".nuty-score.sheet")
+            heads = int(pg.locator(".nuty-score.sheet").get_attribute("data-heads"))
+            ok("śpiewnik: a melody", heads >= 8, str(heads))
+            ok("śpiewnik: chords over it", ">C</text>" in sheet and ">G</text>" in sheet and ">F</text>" in sheet)
+            ok("śpiewnik: words under it", ">Ala</text>" in sheet and ">kota</text>" in sheet)
+            pg.screenshot(path=str(shots / "07-spiewnik.png"), full_page=True)
+            pg.wait_for_timeout(1200)
+            saved = json.loads((app_dir / "trener-dane.json").read_text(encoding="utf-8"))
+            sh = saved["modes"]["nuty"].get("sheets", {}).get("t-ala|0", {})
+            ok("śpiewnik: kept for the song", len(sh.get("notes", [])) >= 8 and [c["name"] for c in sh.get("chords", [])][:2] == ["C", "G"], str(sh)[:120])
 
             # other modes stay without notation
             pg.click(".nav-item[data-view=echo]")

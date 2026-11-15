@@ -14,6 +14,7 @@ network (iPhone, another computer) only with the key from klucz-telefonu.txt
   POST /api/data         save progress (atomic, daily backup)
   GET  /api/insights     a few numbers from the router's note files (last 3 days of playing)
   GET  /api/week         weekly dynamics report (this week vs the last one) and one task
+  GET  /api/phrases      ?day=YYYY-MM-DD: that day's playing split into phrases (Nuty → Zeszyt)
   GET  /api/phone        (this PC only) the address with the key, for the QR code
 Stdlib only, so it runs with the same Python as the router.
 """
@@ -47,7 +48,7 @@ DATA_FILE = ROOT / "trener-dane.json"
 NOTES_DIR = ROOT.parent / "notes"   # 13.11: the router writes one file per ISO week (notes-RRRR-Wtt.csv)
 ROUTER = ("127.0.0.1", 47800)
 HTTP_ADDR = ("0.0.0.0", 47810)
-VERSION = "1.16"
+VERSION = "1.17"
 KEY_FILE = ROOT / "klucz-telefonu.txt"
 _build = {"at": 0.0, "id": ""}
 
@@ -252,6 +253,19 @@ def insights(folder: Path = NOTES_DIR, days: int = 3) -> dict:
 
 
 _week_cache = {"at": 0.0, "value": None}
+
+
+def phrases(day: str, folder: Path = NOTES_DIR) -> dict:
+    """Zeszyt (1.17): the phrases played on a day (YYYY-MM-DD, default today), from the router's note file."""
+    try:
+        d = date.fromisoformat(day) if day else date.today()
+    except ValueError:
+        d = date.today()
+    try:
+        return {"day": d.isoformat(), "phrases": notes_report.day_phrases(folder, d)[-80:]}
+    except Exception as exc:          # a broken file must not break the page
+        log.warning("phrases: %s", exc)
+        return {"day": d.isoformat(), "phrases": []}
 
 
 def week(folder: Path = NOTES_DIR) -> dict:
@@ -469,6 +483,8 @@ def make_handler(bus: Bus):
                 return self._json(insights())
             if path == "/api/week":
                 return self._json(week())
+            if path == "/api/phrases":
+                return self._json(phrases(parse_qs(url.query).get("day", [""])[0]))
             if path == "/":
                 path = "/index.html"
             target = (WEB / path.lstrip("/")).resolve()

@@ -1207,3 +1207,13 @@ body.compact .dock-stack > .play-row, body.compact .dock-stack > .actions { flex
 .nuty-summary h2 { margin: 0 0 4px; font-size: 18px; }
 .nuty-missing pre { background: var(--panel); padding: 8px 12px; border-radius: 8px; display: inline-block; }
 @media (max-width: 900px) { .nuty-live { grid-template-columns: 1fr; } }
+.nuty-book { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; }
+.nuty-phrases { display: grid; gap: 6px; max-height: 70vh; overflow: auto; }
+.nuty-ph { display: grid; text-align: left; gap: 2px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.nuty-ph span { color: var(--ink-3); font-size: 13px; }
+.nuty-ph.on { border-color: var(--mode); box-shadow: inset 3px 0 0 var(--mode); }
+.nuty-export { margin-top: 10px; align-items: center; }
+.nuty-tempo { width: 4.5em; }
+.nuty-saved { margin-top: 12px; }
+.nuty-sheet select { max-width: 16em; }
+@media (max-width: 900px) { .nuty-book { grid-template-columns: 1fr; } }

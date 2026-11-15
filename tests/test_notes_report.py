@@ -80,4 +80,22 @@ with tempfile.TemporaryDirectory() as d:
     check("hand: p10 drops (black 73 and 1s ignored)", h[0]["p10"] == 80 and h[1]["p10"] == 70 and h[1]["median"] == 98)
     check("hand: cached", nr.hand_week(nr.week_file(folder, day)) is nr.hand_week(nr.week_file(folder, day)))
 
+# --- 1.17 Zeszyt: the day's playing in phrases ------------------------------------------------------------------
+with tempfile.TemporaryDirectory() as d:
+    folder = Path(d)
+    t0 = datetime.datetime.combine(day, datetime.time(20)).timestamp()
+    rows = []
+    for i in range(8):                                   # phrase 1: eight notes, each held 0.3 s
+        rows += [(t0 + i * 0.5, "on", 60 + i, 70, 72), (t0 + i * 0.5 + 0.3, "off", 60 + i, 0, 0)]
+    rows += [(t0 + 2.0, "on", 48, 60, 60), (t0 + 9.0, "off", 48, 0, 0)]      # a long bass note keeps it going
+    rows += [(t0 + 20, "on", 72, 80, 80), (t0 + 20.2, "off", 72, 0, 0)] * 1    # phrase 2: too short, left out
+    for i in range(6):                                   # phrase 3, after a pause
+        rows += [(t0 + 30 + i, "on", 64, 90, 90), (t0 + 30 + i + 0.5, "off", 64, 0, 0)]
+    rows += [(t0 - 86400, "on", 60, 50, 50)]             # yesterday: not today
+    write(folder, day, sorted(rows))
+    ph = nr.day_phrases(folder, day)
+    check("phrases: two, the short one left out", [p["n"] for p in ph] == [9, 6])
+    check("phrases: times from the start, lengths from the releases", ph[0]["notes"][0] == [60, 0.0, 0.3, 72] and [48, 2.0, 7.0, 60] in ph[0]["notes"])
+    check("phrases: duration", ph[0]["dur"] == 9.0 and ph[1]["dur"] == 5.5)
+
 print("ALL OK" if ok else "FAILURES")

@@ -9,3 +9,7 @@ _sync_*
 __pycache__/
 # old snapshot kept on the PC
 web-1.0-kopia/
+
+# Spartito engine: Miki's own code, kept local (15.11.2026). Build: python3 tools/spartito_engine.py
+spartito-src/
+web/js/spartito/engine.js

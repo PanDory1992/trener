@@ -17,6 +17,7 @@ import * as kolo from './modes/kolo.js';
 import * as jam from './modes/jam.js';
 import * as piosenki from './modes/piosenki.js';
 import * as palce from './modes/palce.js';
+import * as nuty from './modes/nuty.js';
 import { HELP } from './help.js';
 import { getKey, onKeyChange } from './key.js';
 import { keyName, nameInKey } from './theory.js';
@@ -31,7 +32,7 @@ import { createPedalCoach, VERDICT_TEXT } from './pedalcoach.js';
 import { measureLatency } from './modes/common.js';
 import { coldTrend } from './drill.js';
 
-const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, improv, fiszki, wolne, kolo, jam, piosenki, palce };
+const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, improv, fiszki, wolne, kolo, jam, piosenki, palce, nuty };
 const MAIN = ['kolo', 'piosenki', 'jam'];
 const NAV = ['palce', 'echo', 'dynamika', 'akordy', 'docelowe', 'ucho', 'aksak', 'improv', 'fiszki'];
 const ZOOM = { kolo: [36, 84], jam: [36, 84], piosenki: [36, 84], palce: [36, 84] };
@@ -75,6 +76,9 @@ function layout() {
         ...MAIN.map((id) => navItem(id, MODES[id].title, MODES[id].color, 'nav-main')),
         el('div', { class: 'nav-group' }, 'Ćwiczenia'),
         ...NAV.map((id) => navItem(id, MODES[id].title, MODES[id].color)),
+        // Nuty (Spartito) is a world of its own: the rest of Trener works without notation
+        el('div', { class: 'nav-group nav-group-nuty' }, 'Z nutami'),
+        navItem('nuty', MODES.nuty.title, MODES.nuty.color, 'nav-nuty'),
         el('div', { class: 'nav-sep' }),
         navItem('home', 'Plan dnia', 'var(--c-plan)')),
       el('div', { class: 'rail-foot' },

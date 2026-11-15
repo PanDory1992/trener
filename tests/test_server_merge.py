@@ -1,6 +1,9 @@
 """Server merge of saved data (python3 tests/test_server_merge.py)."""
 import importlib.util
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # trener_serwer imports notes_report
 
 spec = importlib.util.spec_from_file_location("ts", Path(__file__).resolve().parent.parent / "trener_serwer.py")
 m = importlib.util.module_from_spec(spec)

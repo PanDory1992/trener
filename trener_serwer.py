@@ -47,7 +47,7 @@ DATA_FILE = ROOT / "trener-dane.json"
 NOTES_DIR = ROOT.parent / "notes"   # 13.11: the router writes one file per ISO week (notes-RRRR-Wtt.csv)
 ROUTER = ("127.0.0.1", 47800)
 HTTP_ADDR = ("0.0.0.0", 47810)
-VERSION = "1.8"
+VERSION = "1.16"
 KEY_FILE = ROOT / "klucz-telefonu.txt"
 _build = {"at": 0.0, "id": ""}
 

@@ -1,8 +1,8 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.15** (15.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.16** (15.11.2026).
 
-**Stan: rozwój** (15.11 Miki odwołał zamrożenie z 10.11). Myśl o Trenerze rozwojowo i kreatywnie, jak pianista, nauczyciel i doświadczony programista: proponuj kierunki, nie tylko wykonuj. Następny duży krok: Spartito w Trenerze (plan w dokumencie projektu `trener-spartito-plan`).
+**Stan: rozwój** (15.11 Miki odwołał zamrożenie z 10.11). Myśl o Trenerze rozwojowo i kreatywnie, jak pianista, nauczyciel i doświadczony programista: proponuj kierunki, nie tylko wykonuj. W toku: Spartito w Trenerze jako osobny tryb **Nuty** (plan w dokumencie projektu `trener-spartito-plan`; 1.16 = fundament, Na żywo, Czytanie).
 
 ## Zasady pracy (obowiązkowe)
 
@@ -135,13 +135,22 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 - `guide.js`: Graj ze mną.
 - `palce.js`: Ćwiczenia → Palce.
 - `echo`, `dynamika`, `akordy` (Siłownia), `docelowe`, `ucho`, `aksak`, `improv` (Improwizacja), `fiszki`, `wolne`.
+- `nuty.js` (1.16): **Nuty (Spartito)**, osobny świat z nutami, w menu pod własnym nagłówkiem „Z nutami” (`nav-nuty`), poza Planem dnia. Reszta Trenera zostaje bez nut (prośba Mikiego). Zakładki:
+  - **Na żywo**: trzymany akord jako całe nuty w wybranej tonacji (nazwa z `identify`), niżej ostatnie onsety jako rząd nut bez rytmu (jeden takt na onset, żeby pusta pięciolinia miała jedną pauzę), „Nazwy obok nut” (`rec.names`);
+  - **Czytanie**: karta (nuta albo akord) → zagraj dokładnie to; 10 poziomów `READ_LEVELS`, seria 20 kart, awans przy 9/10 i medianie ≤ cel, słabe i wolne karty częściej (`rec.read.items`), pomyłka = twoja nuta na czerwono, klawisze świecą, trzeba poprawić; seria idzie do `logSeries('nuty')`.
+
+**Spartito (silnik nut) – tylko lokalnie, poza gitem (decyzja Mikiego 15.11)**
+- `spartito-src/spartito.js` (kopia z `B:\Spartito`) i wygenerowany `web/js/spartito/engine.js` są w `.gitignore`. Buduje go `python3 tools/spartito_engine.py` (sekcje 00_core–55_export słowo w słowo + lista `export`, md5 w nagłówku). Nie poprawiaj `engine.js` ręcznie; nowa wersja Spartito = skopiuj plik i uruchom narzędzie.
+- Bez silnika Trener działa jak dawniej; tryb Nuty importuje go dynamicznie i mówi, jak go zbudować. Testy z silnikiem są pomijane, gdy go nie ma.
+- `web/js/spartito/notes.js` (czyste, testy `spartito.test.js`): `layout(E, notes, opts)` (model → `nt_engrave` → `ly_layout`), `chordNotes`, `sequenceNotes`, `stavesFor`, `groupOnsets`, `isMeter` (cyfry metrum do ukrycia), `fifthsOf`, `placeWords` (linia/pole po polsku), drabinka czytania i ocena kart.
+- `web/js/spartito/svg.js` (czyste): lista rysowania silnika → tekst SVG (`layoutSvg`, `opsMarkup`, `label`). Dodatki Trenera (nazwy, kolory) rysujemy nad partyturą z `L.hits`, bez zmian w silniku. Kolor złej nuty to kolor zaznaczenia silnika (`selc`).
 
 **Serwer:** `trener_serwer.py`:
 - GET `/`, `/api/events` (SSE), `/api/now`, `/api/data`, `/api/insights`, `/api/week`, `/api/phone`;
 - `notes_report.py` (13.11): czyta tygodniowe pliki routera `../notes/notes-RRRR-Wtt.csv`; `/api/week` = dynamika tego tygodnia i poprzedniego oraz jedno zadanie (karta „Twoja dynamika” w Planie dnia); `/api/insights` też czyta stąd. Czarne i białe porównuje na surowej sile bez „1”, bo krzywa routera i dziura w czarnych klawiszach zaniżają czarne;
 - `notes_report.hand_trend` (1.15): „Twoja ręka, tydzień po tygodniu” w karcie dynamiki: surowa siła białych klawiszy bez „1” (przed krzywą czucia), najcichsze 10% i mediana z ostatnich 6 tygodni (`hand` w `/api/week`, cache po czasie pliku). Spadek dolnej granicy = palce uczą się grać ciszej; krzywa tego nie podrobi.
 - POST `/api/play`, `/api/stop`, `/api/data`, `/api/quit`;
-- `VERSION = "1.8"`.
+- `VERSION = "1.16"`. Ważne: nowy serwer przejmuje port tylko od innej wersji (`take_over_port`), więc przy zmianie serwera podnoś `VERSION`.
 
 ## Model kroku edytora (Jam „Własna / edytor”, `st.custom[mode]`)
 
@@ -157,15 +166,16 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, 179 testów. Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 189 testów (3 z silnikiem Spartito pomijane bez niego). Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
-- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill, improv. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
+- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill, improv, nuty (bez silnika: SKIP). Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
 ## Wdrożenie (z chmury na PC)
 
 1. Skopiuj zmienione pliki do `~/mnt/CodexPedalModes/trener/...`.
 2. `md5sum` po stronie PC musi się zgadzać z kopią źródłową.
 3. Odśwież przeglądarki. Zmiana w `trener_serwer.py` wymaga restartu serwera (nadzorca).
+4. Silnik Spartito (nie ma go w gicie): po `git pull` na PC, gdy zmienił się `spartito.js` albo narzędzie, uruchom w folderze Trenera `python3 tools/spartito_engine.py`.
 
 ## Git i GitHub
 
@@ -194,6 +204,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.16 | 15.11 | Nowy tryb **Nuty (Spartito)**, osobno od reszty Trenera: Na żywo (trzymany akord i ostatnie dźwięki zapisane nutami w tonacji) i Czytanie (10 poziomów, serie po 20 kart, czas czytania). Silnik Spartito tylko lokalnie (`tools/spartito_engine.py`). `VERSION` serwera poprawiona z 1.8 na 1.16. Serwer zmieniony: restart nadzorcy. |
 | 1.15 | 15.11 | Karta „Twoja dynamika”: trend ręki tydzień po tygodniu (surowa siła, najcichsze 10% / mediana). Router (poza Trenerem): czucie **Moje** (krzywa z gry Mikiego, CLAHE z limitem nachylenia 2,5, plus odszumianie kontekstowe; badanie w `CodexPedalModes/symulacja-krzywej-20261115`), jeden przycisk C53 przełącza czucie po kolei, czas puszczania pedału 60/120/250 ms; Keystation Status 0.5.0. Serwer zmieniony: restart nadzorcy. |
 | 1.14 | 14.11 | Nowy tryb **Improwizacja** (prośba Mikiego): lewa jest basem z drabinką 6 wzorów, prawa improwizuje według jednej z 8 zasad, zespół gra pętlę (sama perkusja); osobne poziomy rąk, mapa czasu, rozjazd rąk, swing, przestrzeń, dryf lewej. |
 | 1.13.1 | 14.11 | Siłownia: poziom zmienia się raz na całą progresję (oba przebiegi), nie po każdym akordzie (`roundResult` w `drill.js`: średnia, zaliczona tylko gdy każdy akord, rada najsłabszego). Seria = 10 progresji. Pominięty akord = 0. |

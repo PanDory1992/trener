@@ -5,7 +5,8 @@ import { applyScores, axesOf } from './drill.js';
 import { setClick } from './click.js';
 
 export const MODES = {
-  kolo: { title: 'Koło tonacji', long: 'Koło tonacji', color: 'var(--c-kolo)', blurb: 'Gamy, akordy i progresje w każdej tonacji, pokazane na klawiszach.' },
+  kolo: { title: 'Koło tonacji', long: 'Koło tonacji', color: 'var(--c-kolo)', blurb: 'Gamy, akordy i ich przewroty w każdej tonacji, pokazane na klawiszach.' },
+  progresje: { title: 'Progresje', long: 'Progresje akordów', color: 'var(--c-prog)', blurb: 'Jak akordy idą po sobie: biblioteka, warsztat, ruchy, przepisy, gry i album komórek.' },
   piosenki: { title: 'Piosenki', long: 'Piosenki', color: 'var(--c-song)', blurb: 'Twoje piosenki jako akordy i numery, pod twój głos.' },
   jam: { title: 'Jam', long: 'Jam z zespołem', color: 'var(--c-jam)', blurb: 'Ja gram zespół, ty swoją partię. 18 stylów.' },
   palce: { title: 'Palce', long: 'Palce: palcowanie', color: 'var(--c-palce)', blurb: 'Pozycje, palce na zawołanie, równość palców, kciuk i gamy.' },

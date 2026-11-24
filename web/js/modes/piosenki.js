@@ -1,6 +1,7 @@
 // Piosenki: your songs as chords → numbers in a key that fits your voice, played with you section by section,
 // with "kroki do niej": what from the Koło is inside (family, borrowed chords, known progressions).
 import * as bus from '../bus.js';
+import { cellsInSteps } from '../cells.js';
 import { setKey } from '../key.js';
 import * as store from '../store.js';
 import { family, keyName, makeKey, PATTERNS, voicing, bassNote } from '../theory.js';
@@ -329,8 +330,10 @@ export function mount(stage, ctx) {
       el('div', { class: 'doors' },
         el('button', { class: 'door', onclick: () => goKolo({ tab: 'akordy' }) }, `Rodzina akordów ${keyName(key, true)} →`),
         el('button', { class: 'door', onclick: () => goKolo({ tab: 'gama', scale: key.mode === 'major' ? 'dur' : 'moll' }) }, `Gama ${keyName(key, true)} →`),
-        progsAll.map((p) => el('button', { class: 'door', onclick: () => goKolo({ tab: 'progresje', prog: p.id }) }, `Progresja „${p.name}” →`)),
+        progsAll.map((p) => el('button', { class: 'door', onclick: () => ctx.go && ctx.go('progresje', { preset: { key: { li: key.li, acc: key.acc, mode: key.mode }, prog: p.id } }) }, `Progresja „${p.name}” →`)),
+        el('button', { class: 'door', title: 'Ta część w Progresjach: szkielet, bas, siatka, Zamień / Pożycz', onclick: () => progWith(a, sec) }, `Rozbierz ${sec ? `„${sec.name}”` : 'piosenkę'} w Progresjach →`),
         el('button', { class: 'door', onclick: () => jamWith(a, sec) }, 'Zagraj z zespołem / edytuj w Jamie →')),
+      songCellsLine(a, sec),
       outside.length ? el('div', {}, el('p', { class: 'muted' }, 'Spoza rodziny (szare, podkreślone kreskami):'), el('ul', {}, outside.map((t) => el('li', {}, t)))) : el('p', { class: 'muted' }, 'Wszystkie akordy są z rodziny tej tonacji.'));
   }
 
@@ -347,6 +350,20 @@ export function mount(stage, ctx) {
       });
     }
     return steps;
+  }
+
+  /** 1.18: the section (or the song) as your own progression in the Progresje tab, Warsztat, Szkielet lens. */
+  function progWith(a, sec) {
+    const steps = songSteps(a, sec ? [sec] : a.chart.sections).filter((x) => x.k === 'chord').slice(0, 64);
+    ctx.go && ctx.go('progresje', { preset: { steps, title: `${current().title}${sec ? ` · ${sec.name}` : ''}`, key: { li: a.key.li, acc: a.key.acc, mode: a.key.mode }, from: 'piosenka', lens: 'szkielet' } });
+  }
+  /** Cells of the album found in this part (Progresje → Album). */
+  function songCellsLine(a, sec) {
+    const steps = songSteps(a, sec ? [sec] : a.chart.sections).filter((x) => x.k === 'chord');
+    const found = cellsInSteps(a.key, steps, { loop: false });
+    if (!found.length) return null;
+    return el('p', { class: 'muted song-cells' }, el('b', {}, 'Komórki harmonii: '), found.map(({ cell }, i) => [i ? ', ' : '',
+      el('button', { class: 'linkish', onclick: () => ctx.go && ctx.go('progresje', { preset: { tab: 'album', cell: cell.id } }) }, cell.name)]));
   }
 
   function jamWith(a, sec) {

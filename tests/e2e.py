@@ -204,8 +204,8 @@ def main():
                 user.seq(fam, gap=0.6)
                 page.wait_for_timeout(500)
                 print("akordy:", page.inner_text(".kstatus"))
-                # Progresje + tempo mode
-                page.get_by_role("tab", name="Progresje").click()
+                # Akompaniament + tempo mode (1.18: the Progresje card is its own tab now; see e2e_progresje.py)
+                page.get_by_role("tab", name="Akompaniament").click()
                 page.wait_for_timeout(300)
                 page.get_by_role("radio", name="W tempie").click()
                 page.get_by_role("button", name="Graj ze mną", exact=True).click()

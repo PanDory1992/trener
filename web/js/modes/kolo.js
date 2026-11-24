@@ -25,7 +25,8 @@ export const RANGE = [36, 84];
 export const ROLE_TONE = { 1: 'var(--role-1)', 3: 'var(--role-3)', 5: 'var(--role-5)', 7: 'var(--role-7)', 6: 'var(--role-7)', 9: 'var(--role-t)', 2: 'var(--role-t)', 4: 'var(--role-t)', 11: 'var(--role-t)', 13: 'var(--role-t)', 8: 'var(--role-1)', 10: 'var(--role-3)', 12: 'var(--role-5)' };
 const FINGER = ['', '①', '②', '③', '④', '⑤'];
 const ALL_SCALES = Object.keys(SCALES);
-const TABS = [['gama', 'Gama'], ['akordy', 'Akordy'], ['progresje', 'Progresje'], ['akomp', 'Akompaniament']];
+// 1.18: progressions have their own tab (Progresje); here the tab is a door to it, in this key
+const TABS = [['gama', 'Gama'], ['akordy', 'Akordy'], ['akomp', 'Akompaniament'], ['progresje', 'Progresje →']];
 const HAND_NAME = { rh: 'prawa', lh: 'lewa', both: 'obie ręce' };
 // Gama: what comes after a whole pass — the same key, the next on the wheel, or a semitone up (as on the keyboard)
 const SCALE_WALKS = [[0, 'ta sama tonacja'], [1, 'po kole →'], ['up', 'pół tonu w górę']];
@@ -89,6 +90,12 @@ export function mount(stage, ctx) {
   let selChord = null;      // index in family (Akordy tab)
   let invMode = false;      // Akordy: walk inversions of selChord
   if (ctx.preset && ctx.preset.tab) st.tab = ctx.preset.tab;
+  // an old link to the Koło's Progresje card (dice, reviews, Piosenki) opens the Progresje tab
+  if (st.tab === 'progresje') {
+    const pk = ctx.preset && ctx.preset.key;
+    st.tab = 'akomp';
+    if (ctx.preset && ctx.preset.tab === 'progresje') { const p2 = { ...ctx.preset }; setTimeout(() => ctx.go && ctx.go('progresje', { preset: { prog: p2.prog, key: pk, way: p2.way, review: p2.review, item: p2.item } }), 0); }
+  }
   if (ctx.preset && ctx.preset.key) {   // from Piosenki: open a card in the song's key
     const pk = ctx.preset.key;
     const found = ALL_KEYS.find((k) => k.li === pk.li && k.acc === pk.acc && k.mode === pk.mode) || keyByTonic(makeKey(LETTERS[pk.li], pk.acc, pk.mode).tonicPc, pk.mode);
@@ -353,12 +360,29 @@ export function mount(stage, ctx) {
         s.append(g);
       }
     }
+    if (st.arrows) drawSteps(s, ki);
     const sig = keySignature(key);
     s.append(svg('circle', { r: 72, class: 'wheel-center' }));
     s.setAttribute('viewBox', '-210 -210 420 420');
     s.append(svg('text', { y: -6, class: 'wc-name' }, keyName(key, true)));
     s.append(svg('text', { y: 22, class: 'wc-sig' }, sig.count ? `${sig.count} ${sig.sign}` : 'bez znaków'));
     fill(wheelBox, s);
+  }
+
+  // 1.20: arrows of the "steps" on the wheel, coloured like the bass moves in Progresje (the same language everywhere)
+  function drawSteps(s, ki) {
+    const outer = key.mode === 'major';
+    const r0 = outer ? 164 : 102;
+    const from = labelPos(ki, r0);
+    s.append(svg('defs', {}, ['mocny', 'wstecz', 'miekki', 'filmowy'].map((k) => svg('marker', { id: `ah-${k}`, viewBox: '0 0 10 10', refX: '8', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse' },
+      svg('path', { d: 'M0,0 L10,5 L0,10 z', class: `ah bm-${k}` })))));
+    const T = [[ki - 1, outer, 'mocny', 'krok w lewo: 4'], [ki + 1, outer, 'wstecz', 'krok w prawo: 5'], [ki, !outer, 'miekki', outer ? 'równoległa molowa' : 'równoległa durowa'],
+      [ki + 3, outer, 'filmowy', 'ćwierć obrotu'], [ki - 3, outer, 'filmowy', 'ćwierć obrotu'], [ki + 4, outer, 'filmowy', 'ćwierć + 1'], [ki - 4, outer, 'filmowy', 'ćwierć + 1']];
+    for (const [i, out, kind, label] of T) {
+      const to = labelPos(((i % 12) + 12) % 12, out ? 150 : 112);
+      const mid = { x: (from.x + to.x) / 2 * 0.55, y: (from.y + to.y) / 2 * 0.55 };
+      s.append(svg('path', { d: `M${from.x.toFixed(1)} ${from.y.toFixed(1)} Q${mid.x.toFixed(1)} ${mid.y.toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`, class: `step-arrow bm-${kind}`, 'marker-end': `url(#ah-${kind})` }, svg('title', {}, label)));
+    }
   }
 
   function renderKeyInfo() {
@@ -372,6 +396,9 @@ export function mount(stage, ctx) {
         el('button', { class: 'btn small', onclick: () => selectKey(rel) }, key.mode === 'major' ? `Molowa: ${keyName(rel)}` : `Durowa: ${keyName(rel)}`),
         el('button', { class: 'btn small', onclick: () => selectKey(right) }, `${keyName(right)} →`)),
       knownHere(),
+      el('div', { class: 'ki-steps' },
+        el('button', { class: `pick small ${st.arrows ? 'on' : ''}`, onclick: () => { st.arrows = !st.arrows; store.save(); drawWheel(); renderKeyInfo(); } }, st.arrows ? 'Strzałki kroków: wł.' : 'Strzałki kroków'),
+        st.arrows ? el('p', { class: 'muted' }, el('b', { class: 'bmt bm-mocny' }, 'mocny'), ' w lewo (4), ', el('b', { class: 'bmt bm-wstecz' }, 'wstecz'), ' w prawo (5), ', el('b', { class: 'bmt bm-miekki' }, 'miękki'), ' do równoległej, ', el('b', { class: 'bmt bm-filmowy' }, 'filmowy'), ' ćwierć obrotu (i o jeden dalej): medianty, jeden wspólny dźwięk. Te same kolory co strzałki basu w Progresjach.') : null),
       el('p', { class: 'muted ki-help' }, key.mode === 'major'
         ? 'Rodzina na kole: 1 w środku, 4 po lewej, 5 po prawej, a w środku koła ich molowi krewni. Sąsiedzi różnią się jednym dźwiękiem.'
         : 'Rodzina na kole: 1m w środku, 4m po lewej, 5m po prawej (zwykle gra się je jako durowe 5), a na zewnątrz durowi krewni.'));
@@ -428,7 +455,7 @@ export function mount(stage, ctx) {
 
   // --- tabs -----------------------------------------------------------------------------------------------
   function renderTabs() {
-    fill(tabs, TABS.map(([tid, name]) => el('button', { class: `tab ${st.tab === tid ? 'on' : ''}`, role: 'tab', 'aria-selected': String(st.tab === tid), onclick: () => { st.tab = tid; store.save(); guide.stop(); renderTabs(); renderCard(); } }, name)));
+    fill(tabs, TABS.map(([tid, name]) => el('button', { class: `tab ${st.tab === tid ? 'on' : ''}`, role: 'tab', 'aria-selected': String(st.tab === tid), onclick: () => { if (tid === 'progresje') { guide.stop(); ctx.go && ctx.go('progresje', { preset: { key: { li: key.li, acc: key.acc, mode: key.mode }, prog: (st.prog || {})[key.mode] || null } }); return; } st.tab = tid; store.save(); guide.stop(); renderTabs(); renderCard(); } }, name)));
   }
 
   // shared controls for a card
@@ -465,7 +492,6 @@ export function mount(stage, ctx) {
     try {
       if (st.tab === 'gama') return cardScale();
       if (st.tab === 'akordy') return cardChords();
-      if (st.tab === 'progresje') return cardProgressions();
       return cardAccomp();
     } catch (err) {
       // never leave an empty card: say so and offer a way back to the defaults
@@ -590,7 +616,7 @@ export function mount(stage, ctx) {
       strip, progBox, playRow(), fbBox, line,
       why(invMode ? whyInversions() : whyFamily(key)),
       doors([
-        ['Progresje z tej rodziny', () => { st.tab = 'progresje'; store.save(); renderTabs(); renderCard(); }],
+        ['Progresje z tej rodziny', () => ctx.go && ctx.go('progresje', { preset: { key: { li: key.li, acc: key.acc, mode: key.mode }, tab: 'biblioteka' } })],
         ['Graj akordy w Jamie', () => ctx.go && ctx.go('jam', { preset: { role: 'akordy' } })],
         sel && sel.quality !== 'dim' && sel.quality !== 'm7b5' ? [`${sel.name} jako tonacja`, () => {
           const target = ALL_KEYS.find((k) => k.tonicPc === sel.root.pc && k.mode === (/^m(?!aj)/.test(sel.quality) || sel.quality === 'min' ? 'minor' : 'major'));
@@ -606,52 +632,6 @@ export function mount(stage, ctx) {
     const list = PROGRESSIONS.filter((p) => p.mode === key.mode);
     const pid = (st.prog || {})[key.mode];
     return list.find((p) => p.id === pid) || list[0];
-  }
-
-  function cardProgressions() {
-    const list = PROGRESSIONS.filter((p) => p.mode === key.mode);
-    const prog = currentProg();
-    const colorPick = st.progColor || 'auto';
-    const chords = progressionChords(key, prog, { color: colorPick });
-    base = () => [];
-    let prev = null;
-    let prevName = null;
-    const steps = chords.map((c) => {
-      const v = voicing(c, { prev, center: 64, lo: 55, hi: 74 });
-      prev = v;
-      const notes = st.bassToo ? [bassNote(c, 43), ...v] : v;
-      const meta = chordMeta(c, prevName);
-      prevName = c.name;
-      return { notes, marks: chordMarks(c, notes, { fn: meta.fn }), label: c.number, sub: c.name, small: c.tones.map((t) => t.name).join(' '), beats: prog.steps.length > 8 ? 2 : 4, vel: 58, ...meta };
-    });
-    useItem(`prog|${prog.id}`);
-    guide.load(steps);
-    fill(card,
-      el('div', { class: 'kcard-head' },
-        el('h2', {}, `${prog.name} w ${keyName(key, true)}`),
-        el('p', { class: 'muted' }, `${prog.mood}. Numery: `, el('span', { class: 'num-chips' }, chords.map((c) => el('b', { class: fnClass(fnOf(key, c)) }, c.number))))),
-      compact()
-        // phone: a list instead of 10 tiles, so the chords and the buttons stay on screen
-        ? el('label', { class: 'field prog-select' }, el('span', {}, 'Progresja'),
-          el('select', { onchange: (e) => { st.prog = { ...(st.prog || {}), [key.mode]: e.target.value }; store.save(); renderCard(); } },
-            list.map((p) => el('option', { value: p.id, selected: p.id === prog.id }, `${M.dotsText(M.get(`${kid()}|prog|${p.id}`))} ${p.name} (${p.mood})`))))
-        : el('div', { class: 'prog-list' }, list.map((p) => el('button', { class: `prog-pick ${p.id === prog.id ? 'on' : ''}`, onclick: () => { st.prog = { ...(st.prog || {}), [key.mode]: p.id }; store.save(); renderCard(); } },
-          el('b', {}, p.name, dots(`${kid()}|prog|${p.id}`)), el('span', {}, p.mood)))),
-      el('div', { class: 'chips-row' },
-        el('div', { class: 'seg-ctl small', role: 'radiogroup', 'aria-label': 'Barwa' },
-          [['auto', 'Jak w stylu'], ['triads', 'Trójdźwięki'], ['sevenths', 'Septymy'], ['ninths', 'Nony']].map(([v, t]) => el('button', { class: colorPick === v ? 'on' : '', role: 'radio', 'aria-checked': String(colorPick === v), onclick: () => { st.progColor = v; store.save(); renderCard(); } }, t))),
-        el('label', { class: 'field inline' }, el('input', { type: 'checkbox', checked: st.bassToo, onchange: (e) => { st.bassToo = e.target.checked; store.save(); renderCard(); } }), el('span', {}, 'Lewa ręka gra bas')),
-        chalPick()),
-      fnLegend(),
-      strip, progBox, playRow(), fbBox, line,
-      why(`${prog.why} Na klawiszach pokazuję układ, w którym ręka rusza się jak najmniej: wspólne dźwięki zostają pod palcami.`),
-      doors([
-        ['Zagraj ją w Jamie', () => ctx.go && ctx.go('jam', { preset: { prog: prog.id, role: 'akordy' } })],
-        ['Akompaniament do niej', () => { st.tab = 'akomp'; store.save(); renderTabs(); renderCard(); }],
-        [`Ta sama w ${keyName(keyAt(wheelIndex(key) + 1, key.mode), true)}`, () => selectKey(keyAt(wheelIndex(key) + 1, key.mode))],
-      ]));
-    refreshProgress();
-    ctx.keyboard.mark([]);
   }
 
   // --- Akompaniament -------------------------------------------------------------------------------------------
@@ -689,15 +669,19 @@ export function mount(stage, ctx) {
     fill(card,
       el('div', { class: 'kcard-head' },
         el('h2', {}, `Akompaniament: ${pat.name}`),
-        el('p', { class: 'muted' }, `Do progresji ${prog.name} (${chords.map((c) => c.name).join(' ')}). Inną progresję wybierzesz w karcie Progresje.`)),
+        el('p', { class: 'muted' }, `Do progresji ${prog.name} (${chords.map((c) => c.name).join(' ')}). Więcej o niej: zakładka Progresje.`)),
       el('div', { class: 'chips-row' }, PATTERNS.map((p) => el('button', { class: `pick ${p.id === pat.id ? 'on' : ''}`, onclick: () => { st.pattern = p.id; store.save(); renderCard(); } },
         p.name, el('span', { class: 'lvl-dots', 'aria-label': `trudność ${p.level} z 3` }, '•'.repeat(p.level)), dots(`${kid()}|akomp|${p.id}|${prog.id}`)))),
-      el('div', { class: 'chips-row' }, chalPick()),
+      el('div', { class: 'chips-row' },
+        el('label', { class: 'field inline prog-select' }, el('span', {}, 'Progresja'),
+          el('select', { onchange: (e) => { st.prog = { ...(st.prog || {}), [key.mode]: e.target.value }; store.save(); renderCard(); } },
+            PROGRESSIONS.filter((p) => p.mode === key.mode).map((p) => el('option', { value: p.id, selected: p.id === prog.id }, `${M.dotsText(M.get(`${kid()}|akomp|${pat.id}|${p.id}`))} ${p.name}`)))),
+        chalPick()),
       strip, progBox, playRow(), fbBox, line,
       why(pat.why),
       doors([
         ['Z zespołem w Jamie', () => ctx.go && ctx.go('jam', { preset: { prog: prog.id, role: 'wszystko' } })],
-        ['Inna progresja', () => { st.tab = 'progresje'; store.save(); renderTabs(); renderCard(); }],
+        ['Ta progresja w Progresjach', () => ctx.go && ctx.go('progresje', { preset: { key: { li: key.li, acc: key.acc, mode: key.mode }, prog: prog.id } })],
       ]));
     refreshProgress();
     ctx.keyboard.mark([]);

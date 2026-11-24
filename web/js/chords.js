@@ -290,7 +290,7 @@ export function simpleSpell(key, pc) {
   }
   return best;
 }
-const asStep = (key, li, pc, q) => { const da = degAlt(key, li, pc); return { k: 'chord', d: da.deg, a: da.alt, q }; };
+export const asStep = (key, li, pc, q) => { const da = degAlt(key, li, pc); return { k: 'chord', d: da.deg, a: da.alt, q }; };
 const fits = (key, scaleId, c) => { const pcs = new Set(scaleOf(key, scaleId).map((x) => x.pc)); return c.tones.every((t) => pcs.has(t.pc)); };
 
 /** Suggestion groups like Chord Suggester: [{ id, name, items: [{ step, label }] }]. scaleId null = Trener's family. */
@@ -322,6 +322,10 @@ export function suggestions(key, scaleId = null) {
   push('ii', 'Wtórne 2/x (przygotowanie)', targets.map((t) => { const r = above(t, 1, 2); return item(asStep(key, r.li, r.pc, t.q === 'min' ? 'm7b5' : 'm7'), `2/${tLabel(t)}`); }));
   push('vii', 'Wtórne 7°/x (dźwięk prowadzący)', targets.map((t) => { const r = above(t, 6, 11); return item(asStep(key, r.li, r.pc, 'dim7'), `7°/${tLabel(t)}`); }));
   push('tt', 'Zastępstwo trytonowe', [...targets, { d: 1, a: 0, q: key.mode === 'minor' ? 'min' : 'maj' }].map((t) => { const pc = mod12(rootOf(t).pc + 1); const sp = simpleSpell(key, pc); return item(asStep(key, sp.li, pc, 'dom7'), `sub 5⁷/${tLabel(t)}`); }));
+  // 1.19: chromatic mediants of the tonic: a third away, the same kind, one common tone (film music)
+  const tq = key.mode === 'minor' ? 'min' : 'maj';
+  push('med', 'Medianty chromatyczne (jeden wspólny dźwięk)', [3, 4, 8, 9].map((x) => { const pc = mod12(key.tonicPc + x); const sp = simpleSpell(key, pc); return item(asStep(key, sp.li, pc, tq)); })
+    .filter((x) => { const c = stepChord(key, x.step, { color: 'triads' }); const t = stepChord(key, { k: 'chord', d: 1, a: 0, q: tq }, { color: 'triads' }); return c.tones.filter((y) => t.tones.some((z) => z.pc === y.pc)).length === 1; }));
   // borrowed from the parallel key (modal mixture)
   const par = key.mode === 'major' ? 'moll' : 'dur';
   const parChords = [0, 1, 2, 3, 4, 5, 6].map((i) => stackedChord(key, par, i, 3)).filter(Boolean);

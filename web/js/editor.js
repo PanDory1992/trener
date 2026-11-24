@@ -12,10 +12,11 @@ import {
 
 export { textToSteps };
 import { fnOf, fnClass } from './colors.js';
+import { replacements, applyReplacement } from './lenses.js';
 
 const mod12 = (x) => ((x % 12) + 12) % 12;
 const LENS = [[0, 'jak reszta'], [0.5, '½ taktu'], [1, '1 takt'], [2, '2 takty'], [3, '3 takty'], [4, '4 takty'], [8, '8 taktów']];
-const ALTER_TABS = [['rodzaj', 'Rodzaj'], ['uklad', 'Układ'], ['bas', 'Bas'], ['interwaly', 'Interwały']];
+const ALTER_TABS = [['rodzaj', 'Rodzaj'], ['uklad', 'Układ'], ['bas', 'Bas'], ['interwaly', 'Interwały'], ['zamien', 'Zamień / Pożycz']];
 const ADD_TABS = [['dalej', 'Co dalej'], ['prop', 'Propozycje'], ['stopnie', 'Stopnie'], ['kadencje', 'Kadencje'], ['wpisz', 'Wpisz'], ['zbuduj', 'Zbuduj']];
 const IV_ROWS = [['2', 'sekunda', ['b2', '2', '#2']], ['3', 'tercja', ['b3', '3']], ['4', 'kwarta', ['4', '#4']], ['5', 'kwinta', ['b5', '5', '#5']],
   ['6', 'seksta', ['b6', '6', '#6']], ['7', 'septyma', ['bb7', 'b7', '7']], ['8', 'oktawa (podwojenie)', ['8']], ['9', 'nona', ['b9', '9', '#9']],
@@ -173,6 +174,15 @@ export function progEditor(ui, api) {
         const st = { ...s, bass: b || null };
         return chip(st, b ? `bas +${b}` : 'bez', () => set({ bass: b || null }), (s.bass || 0) === b ? 'on' : '');
       }));
+    } else if (tab === 'zamien') {
+      // 1.19: what can stand here (the same card as in Progresje → Warsztat)
+      body = replacements(key, { ...s, f: null }).map((g) => el('div', { class: 'pe-grp' }, el('span', { class: 'pe-grp-name', title: g.about }, g.name),
+        el('div', { class: 'pe-grid' }, g.items.map((o) => chip(o.step, o.insert ? `+ ${o.label}` : o.label, () => {
+          const out = applyReplacement(steps.map(normStep), i, o);
+          steps.splice(0, steps.length, ...out);
+          if (o.insert) ui.open = i + 1;
+          changed(steps[ui.open != null ? ui.open : i]);
+        }, '', `${o.why}. Wspólne dźwięki: ${o.common}.${o.insert ? ' Wstawiam przed, zabiera pół długości.' : ''}`)))));
     } else {
       body = intervalBuilder(stepTokens(s), (toks) => set({ f: toks, vrel: null }));
     }

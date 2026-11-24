@@ -146,15 +146,15 @@ def main():
             ok("Fm explained as borrowed", "Fm" in steps and "pożyczony" in steps, steps.replace("\n", " ")[:200])
             pg.screenshot(path=str(shots / "p3-pasted.png"))
 
-            # --- from a song to the Koło ------------------------------------------------------------------------
+            # --- from a song to Progresje ----------------------------------------------------------------------
             pg.locator(".song-pick", has_text="Let It Be").click()
             pg.wait_for_timeout(400)
             door = pg.locator(".song-steps .door", has_text="Pop-hymn")
             ok("Let It Be: Pop-hymn found inside", door.count() == 1)
             door.click()
             pg.wait_for_timeout(600)
-            h2 = pg.inner_text(".kcard h2")
-            ok("opens the Koło card: Pop-hymn w C-dur", "Pop-hymn" in h2 and "C-dur" in h2, h2)
+            h2 = pg.inner_text(".pr-whead h2")   # 1.18: progressions open in the Progresje tab
+            ok("opens Progresje → Warsztat: Pop-hymn w C-dur", "Pop-hymn" in h2 and "C-dur" in h2, h2)
 
             # --- to the Jam ----------------------------------------------------------------------------------------
             pg.click("nav >> text=Piosenki")

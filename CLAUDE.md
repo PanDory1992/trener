@@ -1,8 +1,8 @@
 # Trener: zacznij tutaj (dla Claude i dla Mikiego)
 
-Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.17** (15.11.2026).
+Trener to prywatna aplikacja do nauki gry na pianinie i akompaniamentu do śpiewu, zbudowana dla jednej osoby (Miki, dorosły początkujący, śpiewa). Działa w przeglądarce, gra przez prawdziwe instrumenty w Studio One i słucha klawiatury przez router MIDI. Wersja: **1.21** (24.11.2026).
 
-**Stan: rozwój** (15.11 Miki odwołał zamrożenie z 10.11). Myśl o Trenerze rozwojowo i kreatywnie, jak pianista, nauczyciel i doświadczony programista: proponuj kierunki, nie tylko wykonuj. W toku: Spartito w Trenerze jako osobny tryb **Nuty** (plan w dokumencie projektu `trener-spartito-plan`; 1.16 = fundament, Na żywo, Czytanie; 1.17 = Zeszyt, Śpiewnik; dalej: Z kartki, rytm z wolnego grania).
+**Stan: rozwój** (15.11 Miki odwołał zamrożenie z 10.11). Myśl o Trenerze rozwojowo i kreatywnie, jak pianista, nauczyciel i doświadczony programista: proponuj kierunki, nie tylko wykonuj. Od 1.18–1.21: nowa zakładka **Progresje** (plan i treść w dokumencie projektu `trener-plan-z-wideo`, sekcje 3–5). W toku: Spartito w Trenerze jako osobny tryb **Nuty** (plan w dokumencie projektu `trener-spartito-plan`; 1.16 = fundament, Na żywo, Czytanie; 1.17 = Zeszyt, Śpiewnik; dalej: Z kartki, rytm z wolnego grania).
 
 ## Zasady pracy (obowiązkowe)
 
@@ -112,6 +112,15 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
   - `improvPlan` (pętla z `PROGRESSIONS` wg poziomu, tonacje od C/a, tempo 58 + 2,6 · niższa oś, do 5 trójdźwięki), `easierImprov`, `improvRound` (odliczanie + `jamCycle` z `role: 'wszystko'` = sama perkusja, 8 taktów, akord każdego taktu), `lhSlots`, `allowedRH`, `clusters`, `lhDemo` („Posłuchaj lewej”);
   - `gradeImprov`: ręce rozdzielone na `SPLIT` = 60 (środkowe C); lewa = sloty trafione w czasie i dźwięku (pół punktu za sam czas), prawa = 35% dźwięki rundy + 35% w siatce + 30% zadanie; rada: najpierw „lewa stanęła”; dodatkowo rozjazd rąk (ms), stosunek swingu ósemek, przestrzeń, gęstość, dryf lewej.
   - Tryb `modes/improv.js`: plansza obu rąk, bieżący akord i takty, klawisze (prawa: dźwięki rundy, lewa: R/5), mapa czasu obu rąk, seria, zimny start, pętla błędu (`Coach`; „Łatwiej” obniża słabszą rękę). `stopRun()` zwraca `bus.stop()` i nowa runda czeka na nie (inaczej stop mógł uciąć nowe granie).
+- **Progresje (1.18–1.21)**, logika czysta, testy `progresje.test.js` (15 testów) i e2e `e2e_progresje.py`:
+  - `progs.js` + `progs-data.js`: **jedna baza progresji** (`CATALOG`, 107): progresje Koła (`theory.PROGRESSIONS`, nadal używane przez Jam, Improwizację, Piosenki), bank Siłowni (`progbank.BANK`, Siłownia bez zmian) i 30 nowych. Duplikaty scalone w jeden wpis z `theoryId`, `bankId`, `alsoBank` (`progFor(id)` znajduje każdy stary id). Każdy wpis: `steps` (model kroku edytora), `fam` (11 rodzin `FAMILY_INFO`), `tier` 1–8, `mood`, `why`, `songs`, `groove`/`tempo`. Cyfry rzymskie względem gamy durowej toniki (`parseNumeral`: jakości, `/3` bas, `*2` długość). `signature`, `filterCatalog`, `keyFor`, `withBars`, `findInSteps`;
+  - `lenses.js`: **Szkielet** (`analyze`: funkcja i warstwa 0 szkielet / 1 rodzina / 2 dominanty wtórne / 3 pożyczki / 4 chromatyka; `undress`; `borrowedFrom`: mod źródłowy jak u nauczyciela, z najmniejszą liczbą zmienionych dźwięków, równoległa −1,5, kolory +1,5), **Bas** (`motion`: mocny / wstecz / miękki / wznoszący / filmowy / krok / poślizg / tryton / stoi; `bassLine`), **Siatka** (Tonnetz: `nodePc`, `plr`, `plrPath`, `gridWindow`), **Jak zagrać** (`WAYS_TO_PLAY`: 7 sposobów, `wayPlan`) i **Zamień / Pożycz** (`replacements`: funkcja, jeden palec P/L/R, mody od lidyjskiej do lokryckiej + kolory, medianty, wtrąć przed nim, barwa; `applyReplacement`: wstawka zabiera połowę długości);
+  - `moves.js`: **27 ruchów** (`MOVES`: say, rule, play, hear, demo, `where`, `apply`); `applyMove` zachowuje długość (wstawka bierze drugą połowę poprzedniego akordu); `movesFor`, `placesFor`, `borrowFor`;
+  - `recipes.js`: **10 przepisów** (`runRecipe`: etapy start → ruch po ruchu, `pick` wybiera akord: `{nth}`, `{last}`, `{deg}`);
+  - `cells.js`: **24 komórki** (wzorce względem toniki albo detektory relacyjne), `findCells`, `cellsInSteps`, `songCells` (w piosenkach), album z powtórkami (`collect`, `review`, `dueCells`, dni 1, 2, 4, 7, 15, 30);
+  - `prgames.js`: gry Treningu (Słysz bas, Co to za progresja?, Dom/wyjście/napięcie, Jeden palec, Jedna nuta, Jeden dźwięk zmienia mod) z planem wg poziomu i oceną 0–100;
+  - `tonnetz.js` (SVG siatki), `modes/progresje.js` (UI: Biblioteka, Warsztat, Ruchy, Przepisy, Trening, Album; zespół przez `jamCycle` okrążenie po okrążeniu, zmiany słychać od następnego; „Graj ze mną” z `Guide`, Wyzwanie i informacja po próbie przeniesione z Koła; Pedał na zmianę z własnym `createPedalCoach`, `app.js` przekazuje pedał przez `instance.onPedal`).
+  - Dane: `modes.progresje` = `{ tab, lens, way, guideWay, color, role, groove, tempo, cur {id, mine?, work}, mine [], album {}, games {id: {level, n, ok, series}}, pedal {progId: {good, blur, early}}, lib, layer, chal, pedalOn }`. „Umiem” progresji: `mastery["<tryb><koło>|prog|<id>"]` jak dawniej na Kole (`suggest.parseItem` zna cały katalog, `openFor` otwiera Progresje).
 - `pedalcoach.js` (13.11): przy każdej zmianie harmonii ocenia pedał: `good` (zmieniony zaraz po akordzie), `blur` (trzymany przez zmianę), `early` (puszczony za wcześnie). Werdykt na chwilę w „Co ja gram?”, licznik dnia `days[d].pedal_*`, panel „Pedał dziś” w Planie dnia.
 
 **Zespół**
@@ -129,8 +138,9 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
   - zaznaczanie, pętla zaznaczonych, cofnij i ponów, pasujące skale.
 
 **Tryby (web/js/modes)**
-- `kolo.js`: Koło tonacji z kartami (`ROLE_TONE` to kolory ról 1/3/5/7/9…).
-- `jam.js`: Jam, który łączy edytor, zespół, perkusistę, eksport MIDI i bas słuchający gracza.
+- `kolo.js`: Koło tonacji z kartami Gama, Akordy, Akompaniament (`ROLE_TONE` to kolory ról 1/3/5/7/9…). Od 1.18 karta „Progresje →” to drzwi do zakładki Progresje (stary link `tab: 'progresje'` przekierowuje), Akompaniament ma własny wybór progresji, „Strzałki kroków” (1.20) rysują na kole kroki w kolorach ruchów basu (`--bm-*`).
+- `progresje.js`: zakładka **Progresje** (w menu między Kołem a Piosenkami): Biblioteka, Warsztat (cztery soczewki, Zamień / Pożycz, zespół, Graj ze mną, pedał), Ruchy, Przepisy, Trening, Album.
+- `jam.js`: Jam, który łączy edytor, zespół, perkusistę, eksport MIDI i bas słuchający gracza. Od 1.18 lista „Akordy” ma cały katalog (Z Koła + rodziny; krok 1-taktowy z katalogu = „jak reszta”), przycisk „W Progresjach”; edytor ma kartę „Zamień / Pożycz” (`lenses.replacements`), propozycje mają grupę „Medianty chromatyczne”.
 - `piosenki.js`: Piosenki: „Zespół gra ze mną” (Perkusja i bas / Cały zespół, styl zapamiętany dla piosenki w `meta[id].style`, ▶ Ta część / ▶ Cała piosenka, świeci grający akord) i przejście „Zagraj z zespołem / edytuj w Jamie”.
 - `guide.js`: Graj ze mną.
 - `palce.js`: Ćwiczenia → Palce.
@@ -170,9 +180,9 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 
 ## Testy
 
-- Unit (node 18+): `cd tests && node --test *.test.js`, 192 testy (4 z silnikiem Spartito pomijane bez niego). Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
+- Unit (node 18+): `cd tests && node --test *.test.js`, 207 testów (4 z silnikiem Spartito pomijane bez niego). Python: `python3 tests/test_notes_report.py` (ALL OK). Muszą przejść wszystkie.
 - E2E (Python + Playwright + Chromium): `python3 tests/e2e_<nazwa>.py`. Każdy uruchamia prawdziwy serwer w kopii katalogu, fałszywy router i przeglądarkę. Port 47810 musi być wolny, więc **uruchamiaj je jeden po drugim**. Potrzebują `udp_bus.py` z `CodexPedalModes` (ścieżka ustawiona w `e2e.py`).
-- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill, improv, nuty (bez silnika: SKIP). Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
+- Zestawy: e2e, phone, scales, loop, loop_docelowe, prio1, redteam, freeplay, piosenki, jam2, prio2, palce, click, settings_sync, editor, drummer, songband, pedal, drill, improv, nuty (bez silnika: SKIP), progresje. Każdy kończy się „ALL OK” albo „SUMMARY n/n OK” i „JS errors: none”.
 
 ## Wdrożenie (z chmury na PC)
 
@@ -209,6 +219,7 @@ Głośność zespołu Miki ustawia **suwakami busów** (od 10.11; wtyczki na bus
 | 1.6 | 10.11 | edytor akordów, `identify`, pedał, klawisze zespołu na kanale 3, bas za akordem |
 | 1.7 | 10.11 | luki z Suggestera: To, co trzymam, Co dalej, kadencje, tekst, cofnij, zaznaczanie, pasujące skale, modulacja z akordami wspólnymi, N⁶ i +6, eksport MIDI |
 | 1.8 | 10.11 | 33 style, 12 progresji, 4 poziomy perkusisty |
+| 1.18–1.21 | 24.11 | Nowa zakładka **Progresje** (prośba Mikiego): jedna baza 107 progresji dla całego Trenera, Biblioteka z rodzinami i piosenkami, Warsztat z czterema soczewkami (Szkielet z warstwami i „Ubierz”, Bas z rodzajami ruchu, Siatka Tonnetz na żywo, Jak zagrać: 7 sposobów z Graj ze mną), Zamień / Pożycz (też w edytorze Jamu), 27 ruchów z przepisem i przykładem przed/po, 10 przepisów krok po kroku, 6 gier + Pętla 5 minut, Album 24 komórek z powtórkami i wykrywaniem w piosenkach, Pedał na zmianę. Koło: karta Progresje → drzwi, strzałki kroków, skale miksolidyjska ♭6 i ♭2 (grupa „Kolory modów”). Plan dnia: panel „Album komórek”. Serwer bez zmian. |
 | 1.17 | 15.11 | Nuty: **Zeszyt** (dzisiejsze granie z dziennika routera, w frazach, nutami; nazwij, zapisz, posłuchaj, eksport) i **Śpiewnik** (melodia nagrana z zespołem → kartka z akordami i tekstem, druk). Serwer: `/api/phrases`. Nadzorca (poza Trenerem): pliki `restart-trener` / `restart-bridge` / `restart-nadzorca` restartują bez Mikiego. |
 | 1.16 | 15.11 | Nowy tryb **Nuty (Spartito)**, osobno od reszty Trenera: Na żywo (trzymany akord i ostatnie dźwięki zapisane nutami w tonacji) i Czytanie (10 poziomów, serie po 20 kart, czas czytania). Silnik Spartito tylko lokalnie (`tools/spartito_engine.py`). `VERSION` serwera poprawiona z 1.8 na 1.16. Serwer zmieniony: restart nadzorcy. |
 | 1.15 | 15.11 | Karta „Twoja dynamika”: trend ręki tydzień po tygodniu (surowa siła, najcichsze 10% / mediana). Router (poza Trenerem): czucie **Moje** (krzywa z gry Mikiego, CLAHE z limitem nachylenia 2,5, plus odszumianie kontekstowe; badanie w `CodexPedalModes/symulacja-krzywej-20261115`), jeden przycisk C53 przełącza czucie po kolei, czas puszczania pedału 60/120/250 ms; Keystation Status 0.5.0. Serwer zmieniony: restart nadzorcy. |

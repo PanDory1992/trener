@@ -1,6 +1,7 @@
 // Jam: pick a style, a progression and a key; I play the band, you play your part.
 // The board shows the chord now and next, the keys show what fits, the trail shows what you played.
 import * as bus from '../bus.js';
+import { CATALOG, FAMILIES, FAMILY_INFO } from '../progs.js';
 import { getKey, setKey } from '../key.js';
 import * as store from '../store.js';
 import { countIn, GROOVE, GROOVES, GROOVE_GROUPS, jamCycle, ROLES, answerBar, bassMidi, KEYS_CH } from '../grooves.js';
@@ -21,7 +22,11 @@ const TRAIL = 28;
 // Wyzwania (no points, no time limit, can be ignored): plain counts while you play and after each lap
 const CHALLENGES = [['', 'brak'], ['ct', 'Tylko dźwięki akordu'], ['third', 'Tercja na każdej zmianie'], ['qa', 'Pytanie–odpowiedź']];
 
-function progsFor(mode) { return PROGRESSIONS.filter((p) => p.mode === mode); }
+// 1.18: the Koło's progressions first (as before), then the rest of the Progresje catalogue by family. A one-bar chord
+// of the catalogue becomes "as the rest" (bars 0), so Jam's bars-per-chord setting still works.
+const EXTRA = CATALOG.filter((p) => !p.theoryId).map((p) => ({ id: p.id, mode: p.mode, name: p.name, mood: p.mood, why: p.why, fam: p.fam, jazz: false,
+  steps: p.steps.map((x) => (x.bars === 1 ? { ...x, bars: 0 } : x)) }));
+function progsFor(mode) { return [...PROGRESSIONS.filter((p) => p.mode === mode), ...EXTRA.filter((p) => p.mode === mode)]; }
 
 export function mount(stage, ctx) {
   const st = store.mode(id);
@@ -113,6 +118,10 @@ export function mount(stage, ctx) {
   ctx.dock(el('div', { class: 'dock-stack' },
     el('div', { class: 'actions jam-actions' }, startBtn, dockDyn, chalPick,
       el('button', { class: 'btn', onclick: () => saveJam() }, 'Zapisz ten jam'),
+      el('button', { class: 'btn', title: 'Ta progresja w zakładce Progresje: szkielet, bas, siatka, Zamień / Pożycz', onclick: () => {
+        const p = prog(); const k = { li: key.li, acc: key.acc, mode: key.mode };
+        ctx.go && ctx.go('progresje', p.id === 'custom' ? { preset: { steps: p.steps.map(normStep).filter((x) => x && x.k === 'chord').map((x) => ({ ...x, bars: x.bars || st.bpc || 1 })), title: p.name, key: k, from: 'jam' } } : { preset: { prog: p.id, key: k } });
+      } }, 'W Progresjach'),
       el('label', { class: 'field inline', title: 'Światła na klawiszach (C58 też włącza i wyłącza)' }, lightsBox, el('span', {}, 'Światła na klawiszach'))),
     // what you played, as numbers in the key: right under the buttons, close to the keys
     el('div', { class: 'trail-wrap' }, el('span', { class: 'doors-label' }, 'Co grasz:'), trailBox)));
@@ -185,7 +194,8 @@ export function mount(stage, ctx) {
           el('optgroup', { label: 'Molowe' }, ALL_KEYS.map((k, i) => (k.mode === 'minor' ? el('option', { value: i, selected: keyName(k) === keyName(key) }, keyName(k, true)) : null))))),
       el('label', { class: 'field' }, el('span', {}, 'Akordy'),
         el('select', { class: 'jam-prog', onchange: (e) => { st.prog[key.mode] = e.target.value; changed(); } },
-          progsFor(key.mode).map((x) => el('option', { value: x.id, selected: x.id === p.id }, `${x.name} (${x.mood})`)),
+          el('optgroup', { label: 'Z Koła' }, PROGRESSIONS.filter((x) => x.mode === key.mode).map((x) => el('option', { value: x.id, selected: x.id === p.id }, `${x.name} (${x.mood})`))),
+          FAMILIES.map((f) => { const l = EXTRA.filter((x) => x.mode === key.mode && x.fam === f); return l.length ? el('optgroup', { label: FAMILY_INFO[f].name }, l.map((x) => el('option', { value: x.id, selected: x.id === p.id }, `${x.name} (${x.mood})`))) : null; }),
           el('option', { value: 'custom', selected: custom }, 'Własna / edytor…'))),
       !custom ? el('button', { class: 'btn tiny', title: 'Skopiuj te akordy do edytora i zmieniaj je jak chcesz', onclick: () => editPreset() }, 'Edytuj te akordy') : null,
       seg('Twoja rola', Object.entries(ROLES).map(([r, info]) => [r, info.name, info.help]), st.role, (v) => { st.role = v; shown.mark = null; changed(); }),

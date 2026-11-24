@@ -123,9 +123,9 @@ def main():
             ph.locator(".fam-card").nth(1).tap()
             ph.wait_for_timeout(400)
             ph.screenshot(path=str(shots / "p05-akordy.png"))
-            ph.get_by_role("tab", name="Progresje").tap()
+            ph.get_by_role("tab", name="Akompaniament").tap()
             ph.wait_for_timeout(300)
-            ph.screenshot(path=str(shots / "p06-progresje.png"))
+            ph.screenshot(path=str(shots / "p06-akomp.png"))
             # menu → Jam
             ph.locator(".menu-btn").tap()
             ph.wait_for_timeout(400)

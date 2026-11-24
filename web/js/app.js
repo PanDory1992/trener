@@ -18,6 +18,8 @@ import * as jam from './modes/jam.js';
 import * as piosenki from './modes/piosenki.js';
 import * as palce from './modes/palce.js';
 import * as nuty from './modes/nuty.js';
+import * as progresje from './modes/progresje.js';
+import { dueCells } from './cells.js';
 import { HELP } from './help.js';
 import { getKey, onKeyChange } from './key.js';
 import { keyName, nameInKey } from './theory.js';
@@ -32,12 +34,12 @@ import { createPedalCoach, VERDICT_TEXT } from './pedalcoach.js';
 import { measureLatency } from './modes/common.js';
 import { coldTrend } from './drill.js';
 
-const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, improv, fiszki, wolne, kolo, jam, piosenki, palce, nuty };
-const MAIN = ['kolo', 'piosenki', 'jam'];
+const ENGINES = { echo, dynamika, akordy, docelowe, ucho, aksak, improv, fiszki, wolne, kolo, jam, piosenki, palce, nuty, progresje };
+const MAIN = ['kolo', 'progresje', 'piosenki', 'jam'];
 const NAV = ['palce', 'echo', 'dynamika', 'akordy', 'docelowe', 'ucho', 'aksak', 'improv', 'fiszki'];
-const ZOOM = { kolo: [36, 84], jam: [36, 84], piosenki: [36, 84], palce: [36, 84] };
+const ZOOM = { kolo: [36, 84], jam: [36, 84], piosenki: [36, 84], palce: [36, 84], progresje: [36, 84] };
 // iPhone and other small screens: fewer octaves so the keys stay readable
-const ZOOM_COMPACT = { kolo: [41, 84], jam: [36, 84], piosenki: [41, 84], palce: [36, 84] };
+const ZOOM_COMPACT = { kolo: [41, 84], jam: [36, 84], piosenki: [41, 84], palce: [36, 84], progresje: [36, 84] };
 const COMPACT_Q = window.matchMedia('(max-width: 900px), (max-height: 560px)');
 const isCompact = () => COMPACT_Q.matches;
 function rangeFor(id) { return isCompact() ? (ZOOM_COMPACT[id] || [36, 96]) : (ZOOM[id] || []); }
@@ -288,6 +290,7 @@ function renderHome(stage) {
         seriesPanel(),
         coldPanel(),
         weekPanel(),
+        progPanel(),
         pedalPanel())),
     el('section', { class: 'modes-grid' }, NAV.map((id) => {
       const m = store.mode(id);
@@ -363,6 +366,18 @@ function coldPanel() {
       el('b', {}, `${MODES[id].title}: `),
       c.today != null ? `dziś ${c.today}` : `ostatnio ${c.days[c.days.length - 1][1]}`,
       c.prev != null ? `, wcześniej średnio ${c.prev}` : ''))));
+}
+
+/** Progresje (1.21): cells of the album due today. */
+function progPanel() {
+  const album = (store.data.modes.progresje || {}).album || {};
+  const due = dueCells(album, store.today()).length;
+  const have = Object.keys(album).length;
+  if (!have) return null;
+  return el('div', { class: 'panel', style: { '--c': MODES.progresje.color } },
+    el('h2', {}, 'Album komórek'),
+    el('p', {}, due ? el('b', {}, `${due} do powtórki dziś. `) : 'Na dziś wszystko powtórzone. ', `W albumie: ${have}.`),
+    el('button', { class: 'btn small', onclick: () => go('progresje', { preset: { tab: 'album' } }) }, 'Otwórz album'));
 }
 
 function pedalPanel() {
@@ -603,6 +618,7 @@ function onBus(e) {
     if (e.pedal === 'sustain' || e.cc === 64) {
       pedalDown = e.value >= 64;
       coach.pedal(secs(), pedalDown);
+      instance && instance.onPedal && instance.onPedal(pedalDown);
       if (!pedalDown) sustained.clear();
       updateWhat();
     }

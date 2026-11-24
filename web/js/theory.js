@@ -93,6 +93,9 @@ export const SCALES = {
   zmnPC: { name: 'zmniejszona półton–cały', short: 'zmn. pół–cały', deg: [[1, 0], [2, -1], [2, 1], [3, 0], [4, 1], [5, 0], [6, 0], [7, -1]] },
   zmnCP: { name: 'zmniejszona cały–półton', short: 'zmn. cały–pół', deg: [[1, 0], [2, 0], [3, -1], [4, 0], [5, -1], [6, -1], [6, 0], [7, 0]] },
   durHarm: { name: 'durowa harmoniczna', short: 'dur harm.', deg: [[1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, -1], [7, 0]] },
+  // 1.18 (wideo o modach): moll z durową tercją i dur z ♭2
+  mixoB6: { name: 'miksolidyjska ♭6 (moll z durową tercją)', short: 'miksolid. ♭6', color: true, deg: [[1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, -1], [7, -1]] },
+  mixoB2: { name: 'miksolidyjska ♭2 (5. mod durowej harmonicznej)', short: 'miksolid. ♭2', color: true, deg: [[1, 0], [2, -1], [3, 0], [4, 0], [5, 0], [6, 0], [7, -1]] },
   // world
   ukrainska: { name: 'ukraińska dorycka', short: 'ukr. dorycka', color: true, deg: [[1, 0], [2, 0], [3, -1], [4, 1], [5, 0], [6, 0], [7, -1]] },
   neapolitanska: { name: 'neapolitańska molowa', short: 'neapolit.', color: true, deg: [[1, 0], [2, -1], [3, -1], [4, 0], [5, 0], [6, -1], [7, 0]] },
@@ -107,6 +110,7 @@ export const SCALE_GROUPS = [
   { id: 'mody', name: 'Mody', list: [['dur', 'jońska'], ['dorycka'], ['frygijska'], ['lidyjska'], ['miksolidyjska'], ['moll', 'eolska'], ['lokrycka']] },
   { id: 'penta', name: 'Pentatoniki i blues', list: [['pentaDur'], ['pentaMoll'], ['bluesDur'], ['blues']] },
   { id: 'jazz', name: 'Jazz', list: [['melodyczna'], ['lidyjskaDom'], ['alterowana'], ['bebop'], ['calotonowa'], ['zmnPC'], ['zmnCP'], ['durHarm']] },
+  { id: 'kolory', name: 'Kolory modów', list: [['mixoB6'], ['mixoB2'], ['lidyjskaDom'], ['durHarm'], ['hidzaz'], ['melodyczna']] },
   { id: 'swiat', name: 'Świat', list: [['hidzaz'], ['wegierska'], ['podwojna'], ['ukrainska'], ['neapolitanska'], ['persjanska'], ['hirajoshi'], ['inSen']] },
 ];
 /** Which key (dur or moll) a scale belongs to when it is played from a tonic outside the chosen key. */
@@ -452,6 +456,8 @@ export function whyScale(key, scaleId) {
     zmnPC: 'Na zmianę półton i cały ton. Symetryczna: powtarza się co tercję małą, więc są tylko trzy różne. Gra się ją na akordzie 7 (daje ♭9, ♯9, ♯11 i 13 naraz).',
     zmnCP: 'Na zmianę cały ton i półton. Pasuje do akordu zmniejszonego (°7). Też symetryczna, też tylko trzy różne.',
     durHarm: 'Durowa z obniżonym 6. Jasno, ale z cieniem: daje molowe 4m w durowej tonacji, ten „wzruszający” akord z ballad.',
+    mixoB6: 'Na dole dur, na górze moll: durowa tercja, ale ♭6 i ♭7. To 5. mod molowej melodycznej. Daje heroiczne 1 → 4m i ciemne ♭6, a dom zostaje jasny.',
+    mixoB2: 'Miksolidyjska z obniżonym 2. stopniem, 5. mod durowej harmonicznej. Półton nad toniką przy durowej tercji: blisko hidżazu, ale z jasną 6.',
     ukrainska: 'Dorycka z podwyższonym 4. stopniem. Brzmienie klezmeru, muzyki żydowskiej, rumuńskiej i bałkańskiej.',
     neapolitanska: 'Molowa harmoniczna z obniżonym 2. stopniem. Dramatyczna, operowa, ciemniejsza od harmonicznej.',
     persjanska: 'Bardzo dużo półtonów i dwa skoki o półtora tonu. Gęste, bliskowschodnie brzmienie.',

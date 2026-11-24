@@ -132,16 +132,23 @@ def main():
             # --- 2. Kostka opens a card with one sentence why ----------------------------------------------------
             kinds = set()
             for i in range(4):
+                if not pg.locator(".p2-dice").count():   # 1.18: the last dice opened the Progresje tab
+                    pg.click("nav >> text=Koło tonacji")
+                    pg.wait_for_timeout(400)
                 pg.locator(".p2-dice").click()
                 pg.wait_for_timeout(500)
                 why = pg.inner_text(".p2-why") if pg.locator(".p2-why").count() else ""
                 kinds.add(why.split(":")[0])
                 m = re.search(r"([A-H][♭♯]?-dur|[a-h][♭♯]?-moll)", why)
-                center = pg.text_content(".wc-name")
+                # 1.18: a progression opens the Progresje tab (no wheel there): the key is in the title
+                center = pg.text_content(".wc-name") if pg.locator(".wc-name").count() else re.search(r"w (\S+-(?:dur|moll))", pg.inner_text(".kcard-head h2")).group(1)
                 ok(f"dice {i + 1}: why + the right key on the wheel", why and m and m.group(1) == center, f"why='{why}' wheel='{center}'")
-                if why.startswith("Słabe miejsce"):
+                if why.startswith("Słabe miejsce") and pg.locator(".view-progresje").count():
                     ok("weak spot opens Progresje ii–V–I in E♭-dur, W tempie", "Jazzowe ii–V–I w E♭-dur" in pg.inner_text(".kcard-head h2") and pg.locator(".seg-ctl button.on", has_text="W tempie").count() == 1, pg.inner_text(".kcard-head h2"))
             print("   dice kinds:", sorted(kinds))
+            if not pg.locator(".p2-dice").count():
+                pg.click("nav >> text=Koło tonacji")
+                pg.wait_for_timeout(400)
             pg.screenshot(path=str(shots / "p2-02-dice.png"))
 
             # --- 3. Powtórka: a failed review lowers "umiem" -------------------------------------------------------
@@ -199,10 +206,16 @@ def main():
             strip = pg.evaluate("(() => { const k = document.querySelector('.key.m-fn'); return k ? [k.dataset.note % 12, getComputedStyle(k, '::after').backgroundColor] : null })()")
             ok("the root key of G gets a dominant-coloured strip", strip and strip[0] == 7 and strip[1] == "rgb(255, 92, 138)", str(strip))
             pg.screenshot(path=str(shots / "p2-06-akordy-fn.png"))
-            pg.get_by_role("tab", name="Progresje").click()
+            # 1.18: progressions live in the Progresje tab (Warsztat → Jak zagrać), with the same Wyzwanie and feedback
+            pg.click("nav >> text=Progresje")
+            pg.wait_for_timeout(400)
+            pg.locator(".tabs .tab", has_text="Biblioteka").click()
+            pg.locator(".pr-card[data-id='hymn'] button", has_text="Otwórz").click()
             pg.wait_for_timeout(300)
-            pg.locator(".prog-pick", has_text="Pop-hymn").click()
+            pg.locator(".pr-lenses button", has_text="Jak zagrać").click()
             pg.wait_for_timeout(300)
+            pg.locator("#dockbar .seg-ctl button", has_text="W tempie").click()
+            pg.wait_for_timeout(200)
             steps_fn = pg.evaluate("[...document.querySelectorAll('.gstep')].map((g) => [g.querySelector('b').textContent, (g.className.match(/fn-([TSDX])/) || [])[1]])")
             ok("Progresje: strip coloured by function (1 5 6m 4 → T D T S)", [x[1] for x in steps_fn] == ["T", "D", "T", "S"], str(steps_fn))
 
@@ -248,7 +261,7 @@ def main():
             if tip:
                 pg.locator("#p2-endtip").get_by_role("button", name="Otwórz").click()
                 pg.wait_for_timeout(500)
-                ok("the tip opens the Koło", pg.locator(".kolo").count() == 1)
+                ok("the tip opens the Koło (or Progresje for a progression)", pg.locator(".kolo").count() == 1 or pg.locator(".view-progresje").count() == 1)
             pg.click("nav >> text=Plan dnia")
             pg.wait_for_timeout(900)
             ok("the tip is proposed once a day", pg.locator("#p2-endtip").count() == 0)
@@ -344,7 +357,7 @@ def main():
                 ph.goto("http://127.0.0.1:47810/")
                 ph.wait_for_timeout(1500)
                 over = []
-                for tab in ["Gama", "Akordy", "Progresje", "Akompaniament"]:
+                for tab in ["Gama", "Akordy", "Akompaniament"]:
                     ph.get_by_role("tab", name=tab).tap()
                     ph.wait_for_timeout(300)
                     w = ph.evaluate("(() => { const s = document.querySelector('.stage'); return [document.documentElement.scrollWidth, innerWidth, s.scrollWidth, s.clientWidth] })()")
@@ -357,6 +370,11 @@ def main():
                 if w[0] > w[1] or w[2] > w[3] + 1:
                     over.append(("dice", w))
                 ph.screenshot(path=str(shots / f"p2-ph-{orient}-dice.png"))
+                if not ph.locator(".kolo").count():   # 1.18: a progression from the dice opens Progresje
+                    ph.locator(".menu-btn").tap()
+                    ph.wait_for_timeout(300)
+                    ph.locator(".rail").get_by_text("Koło tonacji", exact=True).tap()
+                    ph.wait_for_timeout(400)
                 ph.get_by_role("tab", name="Gama").tap()
                 ph.wait_for_timeout(300)
                 vis = ph.evaluate("(() => { const b = [...document.querySelectorAll('.play-row .btn.primary')][0]; const r = b.getBoundingClientRect(); return !!b.closest('#dockbar') && r.top >= 0 && r.bottom <= innerHeight && r.right <= innerWidth })()")

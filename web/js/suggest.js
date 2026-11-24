@@ -8,6 +8,7 @@ import { FADE_NAMES, NEED_CLEAN, dueOf, isDue, daysBetween } from './mastery.js'
 import { plural } from './music.js';
 import { parseChart } from './songs.js';
 import { FIVE_PATTERNS, PAIRS, thumbDrills } from './fingers.js';
+import { progFor, chordsIn } from './progs.js';
 
 const HAND_I = { rh: 'prawą ręką', lh: 'lewą ręką', both: 'obiema rękami' };
 const TAB_OF = { gama: 'gama', akordy: 'akordy', prog: 'progresje', akomp: 'akomp' };
@@ -59,8 +60,9 @@ export function parseItem(id, { songs = null } = {}) {
     return null;
   }
   if (parts[1] === 'prog') {
-    const prog = PROGRESSIONS.find((p) => p.id === parts[2] && p.mode === mode);
-    return prog ? { ...base, prog: prog.id } : null;
+    // 1.18: any progression of the Progresje catalogue (the old Koło ids are in it)
+    const prog = progFor(parts[2]);
+    return prog && prog.mode === mode ? { ...base, prog: parts[2] } : null;
   }
   if (parts[1] === 'akomp') {
     const pat = PATTERNS.find((p) => p.id === parts[2]);
@@ -130,11 +132,11 @@ function scaleWords(key, sc, acc = false) {
 }
 
 const numbersOf = (key, progId) => {
-  const prog = PROGRESSIONS.find((p) => p.id === progId);
-  const nums = progressionChords(key, prog, { color: 'triads' }).map((c) => c.number);
+  const prog = progFor(progId);
+  const nums = chordsIn(key, prog.steps).filter((x) => !x.rest).map((x) => x.chord.number);
   return nums.filter((x, j) => j === 0 || x !== nums[j - 1]);
 };
-const progName = (pid) => (PROGRESSIONS.find((p) => p.id === pid) || { name: pid }).name;
+const progName = (pid) => (progFor(pid) || { name: pid }).name;
 const patName = (pid) => (PATTERNS.find((p) => p.id === pid) || { name: pid }).name;
 
 /** A short name of the item, e.g. "gama E♭-dur lewą ręką". */
@@ -191,7 +193,7 @@ export function openFor(info, { way = null, review = false } = {}) {
   const p = { tab: info.tab, key, way, review: review ? info.id : null, item: info.id };
   if (info.tab === 'gama') Object.assign(p, { scale: info.scale, hand: info.hand });
   if (info.tab === 'akordy') Object.assign(p, { sevenths: info.sevenths, inv: info.inv != null ? info.inv : null });
-  if (info.tab === 'progresje') p.prog = info.prog;
+  if (info.tab === 'progresje') { p.prog = info.prog; return { view: 'progresje', preset: { ...p, tab: 'warsztat', lens: 'graj' } }; }
   if (info.tab === 'akomp') Object.assign(p, { prog: info.prog, pattern: info.pattern });
   return { view: 'kolo', preset: p };
 }
